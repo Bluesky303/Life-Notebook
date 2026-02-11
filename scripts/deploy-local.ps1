@@ -8,29 +8,32 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 
-Write-Output "[1/4] Backing up local data..."
+Write-Output "[1/5] Initializing local data files..."
+& (Join-Path $PSScriptRoot "init-data.ps1")
+
+Write-Output "[2/5] Backing up local data..."
 & (Join-Path $PSScriptRoot "backup-data.ps1")
 
-Write-Output "[2/4] Verifying local data..."
+Write-Output "[3/5] Verifying local data..."
 & (Join-Path $PSScriptRoot "verify-data.ps1")
 
 if (-not $SkipInstall) {
   if (-not $SkipBackend) {
-    Write-Output "[3/4] Installing backend dependencies (uv sync)..."
+    Write-Output "[4/5] Installing backend dependencies (uv sync)..."
     Push-Location (Join-Path $repoRoot "backend")
     uv sync
     Pop-Location
   }
 
   if (-not $SkipFrontend) {
-    Write-Output "[3/4] Installing frontend dependencies (npm install)..."
+    Write-Output "[4/5] Installing frontend dependencies (npm install)..."
     Push-Location (Join-Path $repoRoot "frontend")
     npm install
     Pop-Location
   }
 }
 
-Write-Output "[4/4] Starting services..."
+Write-Output "[5/5] Starting services..."
 
 if (-not $SkipBackend) {
   $backendDir = Join-Path $repoRoot "backend"
