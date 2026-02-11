@@ -162,7 +162,7 @@ export function WeeklyTimeline() {
 
   return (
     <section className="panel timeline-panel">
-      <p className="panel-title">一周时间表（按统一时间轴对齐）</p>
+      <p className="panel-title">一周时间表</p>
       {loading ? <p className="wealth-note">正在读取任务...</p> : null}
       <div className="timeline-board">
         <div className="time-axis">

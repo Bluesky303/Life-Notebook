@@ -224,6 +224,10 @@ export async function getKnowledgeEntries(params?: { kind?: string; q?: string }
   return apiRequest<KnowledgeEntry[]>(`/knowledge/${suffix}`);
 }
 
+export async function getKnowledgeEntryById(entryId: number): Promise<KnowledgeEntry> {
+  return apiRequest<KnowledgeEntry>(`/knowledge/${entryId}`);
+}
+
 export async function createKnowledgeEntry(payload: {
   kind: "blog" | "entry";
   title: string;

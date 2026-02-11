@@ -12,6 +12,11 @@ Monorepo for a personal AI-managed life notebook.
 - `backend/`: API and AI gateway
 - `docs/`: Planning docs
 
+## Collaboration
+- Branch workflow: `docs/git-workflow.md`
+- Development model: GitHub Issue -> `feature/*` -> PR to `dev` -> review -> merge
+- API reference: `docs/api-reference.md`
+
 ## Quick Start
 
 ### Backend (uv)

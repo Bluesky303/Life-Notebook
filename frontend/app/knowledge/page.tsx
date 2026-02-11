@@ -12,7 +12,7 @@ export default function KnowledgeHomePage() {
 
         <div className="knowledge-hub">
           <article className="feed-item">
-            <div className="feed-meta">词条（Wiki 风格）</div>
+            <div className="feed-meta">词条</div>
             <div>记录新概念、新硬件、新术语。</div>
             <Link className="entry-link" href="/knowledge/entry">
               进入词条页
@@ -20,7 +20,7 @@ export default function KnowledgeHomePage() {
           </article>
 
           <article className="feed-item">
-            <div className="feed-meta">博客（过程记录）</div>
+            <div className="feed-meta">博客</div>
             <div>记录问题排查、方案设计和复盘。</div>
             <Link className="entry-link" href="/knowledge/blog">
               进入博客页

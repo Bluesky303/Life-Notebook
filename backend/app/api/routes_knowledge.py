@@ -70,6 +70,15 @@ def create_entry(payload: EntryCreate) -> EntryOut:
     return entry
 
 
+@router.get("/{entry_id}", response_model=EntryOut)
+def get_entry(entry_id: int) -> EntryOut:
+    entries = _load_entries()
+    entry = next((row for row in entries if row.id == entry_id), None)
+    if not entry:
+        raise HTTPException(status_code=404, detail="entry not found")
+    return entry
+
+
 @router.delete("/{entry_id}")
 def delete_entry(entry_id: int) -> dict[str, int | bool]:
     entries = _load_entries()

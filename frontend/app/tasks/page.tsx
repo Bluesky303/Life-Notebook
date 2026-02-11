@@ -99,11 +99,11 @@ export default function TasksPage() {
       <TopNav />
       <section className="panel placeholder-page">
         <h1>任务栏</h1>
-        <p>新增任务后会自动进入首页周时间表（按开始/结束时间块对齐）。</p>
+        <p>新增任务后会自动进入首页周时间表。</p>
 
         <div className="task-form">
           <input className="quick-input" placeholder="任务标题" value={title} onChange={(e) => setTitle(e.target.value)} />
-          <input className="quick-input" placeholder="分类（例如 财产/学习/健康）" value={category} onChange={(e) => setCategory(e.target.value)} />
+          <input className="quick-input" placeholder="分类" value={category} onChange={(e) => setCategory(e.target.value)} />
 
           <div className="task-form-row">
             <label>
