@@ -16,6 +16,7 @@ Monorepo for a personal AI-managed life notebook.
 - Branch workflow: `docs/git-workflow.md`
 - Development model: GitHub Issue -> `feature/*` -> PR to `dev` -> review -> merge
 - API reference: `docs/api-reference.md`
+- Local deploy guide: `docs/deploy-local.md`
 
 ## Quick Start
 
@@ -35,3 +36,28 @@ npm run dev
 
 Frontend default URL: `http://localhost:3000`
 Backend default URL: `http://localhost:8000`
+
+## Local Data Ops
+- Initialize missing data files (clean clone safe):
+```bash
+powershell -ExecutionPolicy Bypass -File scripts/init-data.ps1
+```
+- Backup data (zip to `backup/`):
+```bash
+powershell -ExecutionPolicy Bypass -File scripts/backup-data.ps1
+```
+- Verify data files before deploy:
+```bash
+powershell -ExecutionPolicy Bypass -File scripts/verify-data.ps1
+```
+
+## One-Click Local Deploy
+```bash
+powershell -ExecutionPolicy Bypass -File scripts/deploy-local.ps1
+```
+- This script will:
+  - initialize missing data files
+  - backup `backend/data` to a zip archive
+  - verify data file integrity
+  - install dependencies (`uv sync`, `npm install`)
+  - start backend and frontend in new PowerShell windows
