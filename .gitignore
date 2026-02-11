@@ -18,6 +18,13 @@ wheels/
 .env
 .env.local
 
+# Local backup archives
+backup/*.zip
+
 # IDE
 .vscode/
 .idea/
+
+# Runtime data files (local only)
+backend/data/*.json
+
