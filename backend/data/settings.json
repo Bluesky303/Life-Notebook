@@ -1,6 +1,0 @@
-{
-  "default_provider": "codex",
-  "model_name": "gpt-5-codex",
-  "theme": "sci-fi",
-  "local_only": true
-}
