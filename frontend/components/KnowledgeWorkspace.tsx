@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 
 import { createKnowledgeEntry, deleteKnowledgeEntry, getKnowledgeEntries, type KnowledgeEntry } from "@/lib/api";
 import { markdownToHtml } from "@/lib/markdown";
@@ -120,7 +121,11 @@ export function KnowledgeWorkspace({ kind, title, description }: { kind: Kind; t
           <article className="feed-item" key={entry.id}>
             <div className="feed-meta">{formatTime(entry.updated_at)}</div>
             <div>{entry.title}</div>
-            <div className="markdown-render" dangerouslySetInnerHTML={{ __html: markdownToHtml(entry.markdown) }} />
+            <div className="feed-meta">#{entry.id}</div>
+            <div className="markdown-render" dangerouslySetInnerHTML={{ __html: markdownToHtml(entry.markdown.slice(0, 180)) }} />
+            <Link className="entry-link" href={`/knowledge/${kind}/${entry.id}`}>
+              查看详情页
+            </Link>
             <button className="pill danger" type="button" onClick={() => void handleDelete(entry.id)}>
               删除
             </button>
