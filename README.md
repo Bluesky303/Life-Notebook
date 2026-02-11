@@ -15,6 +15,7 @@ Monorepo for a personal AI-managed life notebook.
 ## Collaboration
 - Branch workflow: `docs/git-workflow.md`
 - Development model: GitHub Issue -> `feature/*` -> PR to `dev` -> review -> merge
+- API reference: `docs/api-reference.md`
 
 ## Quick Start
 

@@ -9,6 +9,7 @@ uv run uvicorn app.main:app --reload
 ## API Overview
 - `GET /health/`: health check
 - `POST /ai/chat`: AI gateway entry
+- `POST /ai/parse-record`: parse natural language into structured suggestion
 - `GET/POST /tasks/`: task list/create
 - `DELETE /tasks/{id}`: delete task
 - `GET/POST /assets/transactions`: wallet transaction list/create
@@ -22,9 +23,13 @@ uv run uvicorn app.main:app --reload
 - `GET/POST /feed/`: activity feed
 - `DELETE /feed/{id}`: delete activity
 - `GET/POST /knowledge/`: knowledge entries
+- `GET /knowledge/{id}`: knowledge entry detail
 - `DELETE /knowledge/{id}`: delete entry
 - `GET/PUT /settings/`: app settings
 
 ## Persistence
 - Data is persisted as JSON files in `backend/data/`.
 - Current files: `tasks.json`, `feed.json`, `knowledge.json`, `assets.json`, `settings.json`.
+
+## Reference
+- Full API reference: `docs/api-reference.md`

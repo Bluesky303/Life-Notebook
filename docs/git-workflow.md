@@ -51,6 +51,22 @@ git push -u origin feature/knowledge-markdown-preview
 - Codex does not merge PRs to `dev` or `main` without maintainer approval.
 - Maintainer reviews PR first; merge is manual after approval.
 
+## Docs-Only Exception Flow
+Use this flow only for documentation-only changes (no runtime code changes):
+1. Create a docs issue and label with `docs` (+ optional priority label).
+2. Branch from `dev` using issue id:
+   - `feature/<issue-id>-docs-<short-name>`
+3. Open PR to `dev` and link the issue (`Closes #<id>`).
+4. If maintainer explicitly allows self-merge for this docs task:
+   - merge the PR to `dev` by yourself,
+   - delete remote feature branch,
+   - delete local feature branch,
+   - confirm issue is closed.
+5. Return to `dev` and sync:
+   - `git checkout dev && git pull origin dev`
+
+Docs-only exception must not be used for frontend/backend/runtime behavior changes.
+
 ## CI/CD (Planned)
 - Add CI on PR to `dev`: lint + tests + build.
 - Add release workflow on merge `dev -> main`.
