@@ -232,7 +232,7 @@ export default function AssetsPage() {
           <h3>筛选</h3>
           <div className="task-form-row">
             <label>
-              月份（YYYY-MM）
+              月份
               <input className="quick-input" value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} placeholder="2026-02" />
             </label>
             <label>
@@ -260,7 +260,7 @@ export default function AssetsPage() {
             ))}
           </div>
 
-          <h3>分类收支（本月）</h3>
+          <h3>分类收支</h3>
           <div className="asset-bars">
             {categorySummary.map((row) => {
               const total = parseNumber(row.income) + parseNumber(row.expense);
