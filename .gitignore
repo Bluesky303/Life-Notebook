@@ -1,0 +1,23 @@
+# Node
+node_modules/
+.next/
+out/
+
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Env
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
