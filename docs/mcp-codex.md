@@ -22,10 +22,7 @@ The server runs over stdio (MCP default transport).
   - `task_update`
   - `task_mark_done`
   - `task_delete` (requires `confirm=true`)
-- Sleep logs:
-  - `sleep_log_list`
-  - `sleep_log_create`
-  - `sleep_log_delete` (requires `confirm=true`)
+- Tasks also include sleep entries via `task_create`/`task_update` with `type="sleep"`.
 - Feed:
   - `feed_list`
   - `feed_add`

@@ -14,7 +14,6 @@ from app.schemas.tasks import TaskCreate, TaskOut
 mcp = FastMCP("life-notebook")
 
 TASKS_FILE = "tasks.json"
-SLEEP_FILE = "sleep.json"
 FEED_FILE = "feed.json"
 KNOWLEDGE_FILE = "knowledge.json"
 ASSETS_FILE = "assets.json"
@@ -40,14 +39,6 @@ class SettingsPayload(BaseModel):
     local_only: bool
 
 
-class SleepLogCreate(BaseModel):
-    start_at: datetime
-    end_at: datetime
-    note: str | None = None
-
-
-class SleepLogOut(SleepLogCreate):
-    id: int
 
 
 DEFAULT_SETTINGS = SettingsPayload(
@@ -102,62 +93,6 @@ def _load_tasks() -> list[TaskOut]:
 def _save_tasks(tasks: list[TaskOut]) -> None:
     write_json(TASKS_FILE, [row.model_dump(mode="json", by_alias=True) for row in tasks])
 
-
-def _load_sleep() -> list[SleepLogOut]:
-    rows = read_json(SLEEP_FILE, [])
-    return [SleepLogOut.model_validate(row) for row in rows]
-
-
-def _save_sleep(rows: list[SleepLogOut]) -> None:
-    write_json(SLEEP_FILE, [row.model_dump(mode="json") for row in rows])
-
-
-def _is_sleep_task(task: TaskOut) -> bool:
-    return task.task_type == "sleep"
-
-
-def _migrate_legacy_sleep_into_tasks() -> list[TaskOut]:
-    sleep_rows = _load_sleep()
-    if not sleep_rows:
-        return _load_tasks()
-
-    tasks = _load_tasks()
-    existed_keys = {
-        (
-            task.planned_start_at.isoformat() if task.planned_start_at else "",
-            task.planned_end_at.isoformat() if task.planned_end_at else "",
-            task.note or "",
-        )
-        for task in tasks
-        if _is_sleep_task(task)
-    }
-    next_id = max([row.id for row in tasks], default=0) + 1
-    appended = False
-    for row in sleep_rows:
-        key = (row.start_at.isoformat(), row.end_at.isoformat(), row.note or "")
-        if key in existed_keys:
-            continue
-        task = TaskOut(
-            id=next_id,
-            title="睡眠",
-            category="睡眠",
-            importance="low",
-            type="sleep",
-            status="done",
-            planned_start_at=row.start_at,
-            planned_end_at=row.end_at,
-            actual_start_at=row.start_at,
-            actual_end_at=row.end_at,
-            completed_at=row.end_at,
-            note=row.note,
-        )
-        tasks.append(task)
-        next_id += 1
-        appended = True
-    if appended:
-        _save_tasks(tasks)
-    _save_sleep([])
-    return tasks
 
 
 def _load_feed() -> list[dict[str, Any]]:
@@ -319,85 +254,6 @@ def task_mark_done(task_id: int, done_at: str | None = None) -> dict[str, Any]:
     _append_audit("task_mark_done", {"id": task_id})
     return updated.model_dump(mode="json")
 
-
-@mcp.tool()
-def sleep_log_list(limit: int = 30) -> list[dict[str, Any]]:
-    """List sleep logs ordered by end time desc."""
-    tasks = _migrate_legacy_sleep_into_tasks()
-    rows = sorted(
-        [row for row in tasks if _is_sleep_task(row)],
-        key=lambda row: row.actual_end_at or row.planned_end_at or datetime.min.replace(tzinfo=UTC),
-        reverse=True,
-    )
-    result = []
-    for row in rows[: max(1, min(limit, 200))]:
-        result.append(
-            {
-                "id": row.id,
-                "start_at": (row.actual_start_at or row.planned_start_at),
-                "end_at": (row.actual_end_at or row.planned_end_at),
-                "note": row.note,
-            }
-        )
-    return result
-
-
-@mcp.tool()
-def sleep_log_create(start_at: str, end_at: str, note: str | None = None) -> dict[str, Any]:
-    """Create one sleep log."""
-    start_dt = _parse_datetime(start_at)
-    end_dt = _parse_datetime(end_at)
-    if end_dt <= start_dt:
-        raise ValueError("end_at must be later than start_at")
-
-    tasks = _migrate_legacy_sleep_into_tasks()
-    next_id = max([row.id for row in tasks], default=0) + 1
-    task = TaskOut(
-        id=next_id,
-        title="睡眠",
-        category="睡眠",
-        importance="low",
-        type="sleep",
-        status="done",
-        planned_start_at=start_dt,
-        planned_end_at=end_dt,
-        actual_start_at=start_dt,
-        actual_end_at=end_dt,
-        completed_at=end_dt,
-        note=note,
-    )
-    tasks.append(task)
-    _save_tasks(tasks)
-    _append_audit("sleep_log_create", {"id": next_id})
-    return {
-        "id": task.id,
-        "start_at": task.actual_start_at or task.planned_start_at,
-        "end_at": task.actual_end_at or task.planned_end_at,
-        "note": task.note,
-    }
-
-
-@mcp.tool()
-def sleep_log_delete(log_id: int, confirm: bool = False) -> dict[str, Any]:
-    """Delete one sleep log (confirm=true required)."""
-    if not confirm:
-        raise ValueError("confirm must be true to delete sleep log")
-
-    tasks = _migrate_legacy_sleep_into_tasks()
-    task_row = next((row for row in tasks if row.id == log_id and _is_sleep_task(row)), None)
-    if task_row:
-        rows = [row for row in tasks if row.id != log_id]
-        _save_tasks(rows)
-        _append_audit("sleep_log_delete", {"id": log_id})
-        return {"deleted": True, "id": log_id}
-
-    rows = _load_sleep()
-    new_rows = [row for row in rows if row.id != log_id]
-    if len(new_rows) == len(rows):
-        raise ValueError("sleep log not found")
-    _save_sleep(new_rows)
-    _append_audit("sleep_log_delete", {"id": log_id})
-    return {"deleted": True, "id": log_id}
 
 
 @mcp.tool()
