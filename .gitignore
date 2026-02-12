@@ -28,4 +28,5 @@ backup/*.zip
 # Runtime data files (local only)
 backend/data/*.json
 backend/data/*.log
+backend/data/*.db
 

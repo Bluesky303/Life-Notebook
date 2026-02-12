@@ -10,6 +10,7 @@ from pydantic import BaseModel, ValidationError
 from app.core.json_store import DATA_DIR, read_json, write_json
 from app.schemas.assets import TransactionCreate, TransactionOut
 from app.schemas.tasks import TaskCreate, TaskOut
+from app.services.task_storage import load_tasks as db_load_tasks, replace_tasks as db_replace_tasks
 
 mcp = FastMCP("life-notebook")
 
@@ -86,12 +87,11 @@ def _parse_decimal(amount: str) -> Decimal:
 
 
 def _load_tasks() -> list[TaskOut]:
-    rows = read_json(TASKS_FILE, [])
-    return [TaskOut.model_validate(row) for row in rows]
+    return db_load_tasks()
 
 
 def _save_tasks(tasks: list[TaskOut]) -> None:
-    write_json(TASKS_FILE, [row.model_dump(mode="json", by_alias=True) for row in tasks])
+    db_replace_tasks(tasks)
 
 
 

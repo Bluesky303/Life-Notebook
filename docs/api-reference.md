@@ -15,8 +15,10 @@ Base URL (local): `http://localhost:8000`
 
 ## Tasks
 - `GET /tasks/`
+- `GET /tasks/day?date_str=YYYY-MM-DD`
+  - Returns tasks overlapping that day (supports cross-day tasks)
 - `POST /tasks/`
-  - Body: `{ "title", "category", "type", "status", "importance", "planned_start_at", "planned_end_at", "actual_start_at", "actual_end_at", "completed_at", "note" }`
+  - Body: `{ "title", "category", "type", "status", "importance", "planned_start_at", "planned_end_at", "actual_start_at", "actual_end_at", "completed_at", "note", "is_recurring_template", "recurrence", "template_id" }`
 - `PUT /tasks/{task_id}`
   - Body: same fields as above, supports partial update
 - `DELETE /tasks/{task_id}`
@@ -66,9 +68,9 @@ Base URL (local): `http://localhost:8000`
   - Body: `{ "default_provider", "model_name", "theme", "local_only" }`
 
 ## Persistence
-- Data files are persisted in `backend/data/`.
-- Current files:
-  - `backend/data/tasks.json`
+- Tasks are persisted in SQLite: `backend/data/life_notebook.db`.
+- Other modules currently use JSON files in `backend/data/`.
+- Current JSON files:
   - `backend/data/feed.json`
   - `backend/data/knowledge.json`
   - `backend/data/sleep.json`

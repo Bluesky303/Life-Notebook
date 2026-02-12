@@ -2,13 +2,11 @@ from datetime import UTC, date, datetime, time, timedelta
 
 from fastapi import APIRouter, HTTPException
 
-from app.core.json_store import read_json, write_json
 from app.schemas.tasks import RecurrenceRule, TaskCreate, TaskOut, TaskUpdate
+from app.services.task_storage import load_tasks, replace_tasks
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
-_TASKS_FILE = "tasks.json"
-_DEFAULT_TASKS: list[dict] = []
 _RECURRING_HORIZON_DAYS = 30
 
 
@@ -48,46 +46,12 @@ def _normalize_recurrence(value: dict | RecurrenceRule | None) -> RecurrenceRule
     return row
 
 
-def _normalize_task_row(row: dict) -> TaskOut:
-    # Backward-compatible migration from legacy task schema.
-    planned_start_at = row.get("planned_start_at")
-    planned_end_at = row.get("planned_end_at")
-    if planned_start_at is None and row.get("start_at") is not None:
-        planned_start_at = row.get("start_at")
-    if planned_end_at is None and row.get("end_at") is not None:
-        planned_end_at = row.get("end_at")
-
-    task_type = row.get("type", row.get("task_type"))
-    if task_type is None and row.get("category") == "睡眠":
-        task_type = "sleep"
-
-    normalized = {
-        "id": row.get("id"),
-        "title": row.get("title", ""),
-        "category": row.get("category", "日常"),
-        "importance": row.get("importance", "medium"),
-        "type": _normalize_task_type(task_type),
-        "status": _normalize_status(row.get("status")),
-        "planned_start_at": _normalize_datetime(planned_start_at),
-        "planned_end_at": _normalize_datetime(planned_end_at),
-        "actual_start_at": _normalize_datetime(row.get("actual_start_at")),
-        "actual_end_at": _normalize_datetime(row.get("actual_end_at")),
-        "completed_at": _normalize_datetime(row.get("completed_at")),
-        "note": row.get("note"),
-        "is_recurring_template": bool(row.get("is_recurring_template", False)),
-        "recurrence": _normalize_recurrence(row.get("recurrence")),
-        "template_id": row.get("template_id"),
-    }
-    return TaskOut.model_validate(normalized)
-
-
 def _load_tasks() -> list[TaskOut]:
-    rows = read_json(_TASKS_FILE, _DEFAULT_TASKS)
-    return [_normalize_task_row(row) for row in rows]
+    return load_tasks()
 
 
 def _save_tasks(tasks: list[TaskOut]) -> None:
-    write_json(_TASKS_FILE, [task.model_dump(mode="json", by_alias=True) for task in tasks])
+    replace_tasks(tasks)
 
 
 def _next_task_id(tasks: list[TaskOut]) -> int:
@@ -268,6 +232,12 @@ def _normalize_task_payload_for_write(payload: TaskCreate | TaskUpdate, merged: 
     return body
 
 
+def _task_range(task: TaskOut) -> tuple[datetime | None, datetime | None]:
+    start_at = task.actual_start_at or task.planned_start_at
+    end_at = task.actual_end_at or task.planned_end_at
+    return start_at, end_at
+
+
 @router.get("/", response_model=list[TaskOut])
 def list_tasks(include_templates: bool = False) -> list[TaskOut]:
     tasks = _load_tasks()
@@ -276,6 +246,28 @@ def list_tasks(include_templates: bool = False) -> list[TaskOut]:
         _save_tasks(tasks)
     rows = tasks if include_templates else [item for item in tasks if not item.is_recurring_template]
     return list(sorted(rows, key=lambda item: item.planned_start_at or datetime.max))
+
+
+@router.get("/day", response_model=list[TaskOut])
+def list_tasks_by_day(date_str: str, include_templates: bool = False) -> list[TaskOut]:
+    target_day = date.fromisoformat(date_str)
+    day_start = datetime.combine(target_day, time.min)
+    day_end = day_start + timedelta(days=1)
+
+    tasks = _load_tasks()
+    changed = _ensure_recurring_instances(tasks)
+    if changed:
+        _save_tasks(tasks)
+    rows = tasks if include_templates else [item for item in tasks if not item.is_recurring_template]
+
+    result: list[TaskOut] = []
+    for item in rows:
+        start_at, end_at = _task_range(item)
+        if not start_at or not end_at:
+            continue
+        if start_at < day_end and end_at > day_start:
+            result.append(item)
+    return list(sorted(result, key=lambda item: _task_range(item)[0] or datetime.max))
 
 
 @router.post("/", response_model=TaskOut)

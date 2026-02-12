@@ -10,6 +10,7 @@ from app.api.routes_settings import router as settings_router
 from app.api.routes_sleep import router as sleep_router
 from app.api.routes_tasks import router as tasks_router
 from app.core.config import settings
+from app.core.db import init_db
 
 app = FastAPI(title=settings.app_name)
 
@@ -34,6 +35,11 @@ app.include_router(sleep_router)
 @app.get("/")
 def root() -> dict[str, str]:
     return {"service": settings.app_name, "status": "running"}
+
+
+@app.on_event("startup")
+def on_startup() -> None:
+    init_db()
 
 if __name__ == "__main__":
     import uvicorn
