@@ -10,7 +10,8 @@ uv run uvicorn app.main:app --reload
 - `GET /health/`: health check
 - `POST /ai/chat`: AI gateway entry
 - `POST /ai/parse-record`: parse natural language into structured suggestion
-- `GET/POST /tasks/`: task list/create
+- `GET/POST /tasks/`: task list/create (task + sleep unified model)
+- `PUT /tasks/{id}`: update task fields/status/plan/actual times
 - `DELETE /tasks/{id}`: delete task
 - `GET/POST /assets/transactions`: wallet transaction list/create
 - `DELETE /assets/transactions/{id}`: delete transaction
@@ -25,11 +26,20 @@ uv run uvicorn app.main:app --reload
 - `GET/POST /knowledge/`: knowledge entries
 - `GET /knowledge/{id}`: knowledge entry detail
 - `DELETE /knowledge/{id}`: delete entry
+- `GET/POST /sleep/logs`: legacy compatibility endpoints
+- `DELETE /sleep/logs/{id}`: legacy compatibility endpoint
 - `GET/PUT /settings/`: app settings
 
 ## Persistence
 - Data is persisted as JSON files in `backend/data/`.
-- Current files: `tasks.json`, `feed.json`, `knowledge.json`, `assets.json`, `settings.json`.
+- Current files: `tasks.json`, `feed.json`, `knowledge.json`, `sleep.json`, `assets.json`, `settings.json`.
 
 ## Reference
 - Full API reference: `docs/api-reference.md`
+
+## MCP Server
+- Run local MCP server for Codex tools:
+```bash
+uv run python -m mcp_server.server
+```
+- Setup guide: `docs/mcp-codex.md`

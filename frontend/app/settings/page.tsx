@@ -24,6 +24,8 @@ export default function SettingsPage() {
         setModelName(data.model_name);
         setTheme(data.theme);
         setLocalOnly(data.local_only);
+      } catch (err) {
+        setMessage(err instanceof Error ? err.message : "读取设置失败");
       } finally {
         setLoading(false);
       }
@@ -107,3 +109,4 @@ export default function SettingsPage() {
     </main>
   );
 }
+
