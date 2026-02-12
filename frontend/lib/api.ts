@@ -25,6 +25,14 @@ export type TaskItem = {
   actual_end_at: string | null;
   completed_at: string | null;
   note: string | null;
+  is_recurring_template: boolean;
+  recurrence: {
+    freq: "daily" | "weekly" | "monthly" | "yearly";
+    interval: number;
+    weekdays: number[] | null;
+    until: string | null;
+  } | null;
+  template_id: number | null;
 };
 
 export type AssetAccount = {
@@ -154,6 +162,14 @@ export async function createTask(payload: {
   actual_end_at?: string | null;
   completed_at?: string | null;
   note?: string | null;
+  is_recurring_template?: boolean;
+  recurrence?: {
+    freq: "daily" | "weekly" | "monthly" | "yearly";
+    interval: number;
+    weekdays?: number[] | null;
+    until?: string | null;
+  } | null;
+  template_id?: number | null;
 }): Promise<TaskItem> {
   return apiRequest<TaskItem>("/tasks/", {
     method: "POST",

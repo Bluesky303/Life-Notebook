@@ -1,5 +1,14 @@
 from datetime import datetime
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
+
+
+class RecurrenceRule(BaseModel):
+    freq: Literal["daily", "weekly", "monthly", "yearly"]
+    interval: int = 1
+    weekdays: list[int] | None = None
+    until: datetime | None = None
 
 
 class TaskCreate(BaseModel):
@@ -14,6 +23,9 @@ class TaskCreate(BaseModel):
     actual_end_at: datetime | None = None
     completed_at: datetime | None = None
     note: str | None = None
+    is_recurring_template: bool = False
+    recurrence: RecurrenceRule | None = None
+    template_id: int | None = None
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -30,6 +42,9 @@ class TaskUpdate(BaseModel):
     actual_end_at: datetime | None = None
     completed_at: datetime | None = None
     note: str | None = None
+    is_recurring_template: bool | None = None
+    recurrence: RecurrenceRule | None = None
+    template_id: int | None = None
 
     model_config = ConfigDict(populate_by_name=True)
 

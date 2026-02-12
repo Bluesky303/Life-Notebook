@@ -19,8 +19,9 @@ type DayWindowItem = {
   label: string;
 };
 
-const weekDayMap = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
-const WINDOW_DAYS = 7;
+const weekDayMap = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WINDOW_START_OFFSET_DAYS = -1;
+const WINDOW_DAYS = 9;
 const SLOT_MINUTES = 5;
 const TOTAL_SLOTS = (24 * 60) / SLOT_MINUTES;
 
@@ -62,7 +63,7 @@ function createDayWindow(): DayWindowItem[] {
 
   return Array.from({ length: WINDOW_DAYS }, (_, index) => {
     const d = new Date(today);
-    d.setDate(today.getDate() + index);
+    d.setDate(today.getDate() + WINDOW_START_OFFSET_DAYS + index);
     const mm = (d.getMonth() + 1).toString().padStart(2, "0");
     const dd = d.getDate().toString().padStart(2, "0");
     return {
@@ -107,7 +108,7 @@ function mapTasksToDayEvents(tasks: TaskItem[], windowDays: DayWindowItem[]): Re
     dayEvents[key].push({
       startMinute,
       endMinute,
-      title: task.type === "sleep" ? "睡眠" : task.title,
+      title: task.type === "sleep" ? "Sleep" : task.title,
       kind: task.type === "sleep" ? "sleep" : "task",
       importance: normalizeImportance(task.importance)
     });
@@ -130,7 +131,7 @@ function createDayBlocks(dayBlocks: TimelineBlock[]): TimelineBlock[] {
       blocks.push({
         startMinute: cursor,
         endMinute: block.startMinute,
-        title: "空闲时间",
+        title: "Free",
         kind: "free"
       });
     }
@@ -145,7 +146,7 @@ function createDayBlocks(dayBlocks: TimelineBlock[]): TimelineBlock[] {
     blocks.push({
       startMinute: cursor,
       endMinute: 24 * 60,
-      title: "空闲时间",
+      title: "Free",
       kind: "free"
     });
   }
@@ -193,11 +194,11 @@ export function WeeklyTimeline() {
 
   return (
     <section className="panel timeline-panel">
-      <p className="panel-title">时间表（未来7天）</p>
-      {loading ? <p className="wealth-note">正在读取任务...</p> : null}
+      <p className="panel-title">Timeline (Yesterday to Next Week)</p>
+      {loading ? <p className="wealth-note">Loading tasks...</p> : null}
       <div className="timeline-board">
         <div className="time-axis">
-          <div className="day-name axis-title">时间</div>
+          <div className="day-name axis-title">Time</div>
           <div className="axis-track" style={{ gridTemplateRows: `repeat(${TOTAL_SLOTS}, minmax(0, 1fr))` }}>
             {hourLabels.map((hour) => {
               const minute = hour * 60;

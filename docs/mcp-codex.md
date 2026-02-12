@@ -18,8 +18,8 @@ The server runs over stdio (MCP default transport).
 
 - Tasks:
   - `task_list`
-  - `task_create` (supports planned/actual time, status, note, type)
-  - `task_update` (supports planned/actual time, status, note, type, completed_at)
+  - `task_create` (supports planned/actual time, status, note, type, recurring template fields)
+  - `task_update` (supports planned/actual time, status, note, type, completed_at, recurring template fields)
   - `task_mark_done`
   - `task_delete` (requires `confirm=true`)
 - Tasks also include sleep entries via `task_create`/`task_update` with `type="sleep"`.
