@@ -88,11 +88,11 @@ def create_task(payload: TaskCreate) -> TaskOut:
     if status != "done":
         completed_at = None
 
-    task = TaskOut(
-        id=next_id,
-        completed_at=completed_at,
-        **payload.model_dump(by_alias=True),
-    )
+    body = payload.model_dump(by_alias=True)
+    body["status"] = status
+    body["type"] = _normalize_task_type(body.get("type"))
+    body["completed_at"] = completed_at
+    task = TaskOut(id=next_id, **body)
     tasks.append(task)
     _save_tasks(tasks)
     return task
