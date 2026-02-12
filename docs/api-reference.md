@@ -16,7 +16,9 @@ Base URL (local): `http://localhost:8000`
 ## Tasks
 - `GET /tasks/`
 - `POST /tasks/`
-  - Body: `{ "title", "category", "importance", "start_at", "end_at" }`
+  - Body: `{ "title", "category", "type", "status", "importance", "planned_start_at", "planned_end_at", "actual_start_at", "actual_end_at", "completed_at", "note" }`
+- `PUT /tasks/{task_id}`
+  - Body: same fields as above, supports partial update
 - `DELETE /tasks/{task_id}`
 
 ## Feed (Activity)
@@ -32,11 +34,9 @@ Base URL (local): `http://localhost:8000`
   - Body: `{ "kind": "entry|blog", "title", "markdown" }`
 - `DELETE /knowledge/{entry_id}`
 
-## Sleep
-- `GET /sleep/logs`
-- `POST /sleep/logs`
-  - Body: `{ "start_at", "end_at", "note" }`
-- `DELETE /sleep/logs/{log_id}`
+## Sleep (Legacy Compatibility)
+- Existing `/sleep/logs` endpoints are retained for compatibility.
+- New workflow should manage sleep via `/tasks/` with `type = "sleep"`.
 
 ## Assets
 ### Accounts

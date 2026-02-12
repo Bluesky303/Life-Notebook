@@ -16,15 +16,14 @@ export type TaskItem = {
   id: number;
   title: string;
   category: string;
+  type: "task" | "sleep" | string;
+  status: "todo" | "in_progress" | "done" | "skipped" | string;
   importance: "high" | "medium" | "low" | string;
-  start_at: string | null;
-  end_at: string | null;
-};
-
-export type SleepLog = {
-  id: number;
-  start_at: string;
-  end_at: string;
+  planned_start_at: string | null;
+  planned_end_at: string | null;
+  actual_start_at: string | null;
+  actual_end_at: string | null;
+  completed_at: string | null;
   note: string | null;
 };
 
@@ -140,9 +139,15 @@ export async function getTasks(): Promise<TaskItem[]> {
 export async function createTask(payload: {
   title: string;
   category: string;
+  type: "task" | "sleep";
+  status?: "todo" | "in_progress" | "done" | "skipped";
   importance: "high" | "medium" | "low";
-  start_at: string;
-  end_at: string;
+  planned_start_at?: string | null;
+  planned_end_at?: string | null;
+  actual_start_at?: string | null;
+  actual_end_at?: string | null;
+  completed_at?: string | null;
+  note?: string | null;
 }): Promise<TaskItem> {
   return apiRequest<TaskItem>("/tasks/", {
     method: "POST",
@@ -150,29 +155,30 @@ export async function createTask(payload: {
   });
 }
 
-export async function deleteTask(taskId: number): Promise<{ deleted: boolean; id: number }> {
-  return apiRequest<{ deleted: boolean; id: number }>(`/tasks/${taskId}`, {
-    method: "DELETE"
-  });
-}
-
-export async function getSleepLogs(): Promise<SleepLog[]> {
-  return apiRequest<SleepLog[]>("/sleep/logs");
-}
-
-export async function createSleepLog(payload: {
-  start_at: string;
-  end_at: string;
-  note?: string;
-}): Promise<SleepLog> {
-  return apiRequest<SleepLog>("/sleep/logs", {
-    method: "POST",
+export async function updateTask(
+  taskId: number,
+  payload: Partial<{
+    title: string;
+    category: string;
+    type: "task" | "sleep";
+    status: "todo" | "in_progress" | "done" | "skipped";
+    importance: "high" | "medium" | "low";
+    planned_start_at: string | null;
+    planned_end_at: string | null;
+    actual_start_at: string | null;
+    actual_end_at: string | null;
+    completed_at: string | null;
+    note: string | null;
+  }>
+): Promise<TaskItem> {
+  return apiRequest<TaskItem>(`/tasks/${taskId}`, {
+    method: "PUT",
     body: JSON.stringify(payload)
   });
 }
 
-export async function deleteSleepLog(logId: number): Promise<{ deleted: boolean; id: number }> {
-  return apiRequest<{ deleted: boolean; id: number }>(`/sleep/logs/${logId}`, {
+export async function deleteTask(taskId: number): Promise<{ deleted: boolean; id: number }> {
+  return apiRequest<{ deleted: boolean; id: number }>(`/tasks/${taskId}`, {
     method: "DELETE"
   });
 }
