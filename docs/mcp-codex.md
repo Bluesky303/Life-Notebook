@@ -18,14 +18,11 @@ The server runs over stdio (MCP default transport).
 
 - Tasks:
   - `task_list`
-  - `task_create`
-  - `task_update`
+  - `task_create` (supports planned/actual time, status, note, type)
+  - `task_update` (supports planned/actual time, status, note, type, completed_at)
   - `task_mark_done`
   - `task_delete` (requires `confirm=true`)
-- Sleep logs:
-  - `sleep_log_list`
-  - `sleep_log_create`
-  - `sleep_log_delete` (requires `confirm=true`)
+- Tasks also include sleep entries via `task_create`/`task_update` with `type="sleep"`.
 - Feed:
   - `feed_list`
   - `feed_add`

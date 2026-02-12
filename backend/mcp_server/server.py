@@ -14,7 +14,6 @@ from app.schemas.tasks import TaskCreate, TaskOut
 mcp = FastMCP("life-notebook")
 
 TASKS_FILE = "tasks.json"
-SLEEP_FILE = "sleep.json"
 FEED_FILE = "feed.json"
 KNOWLEDGE_FILE = "knowledge.json"
 ASSETS_FILE = "assets.json"
@@ -32,6 +31,7 @@ DEFAULT_ASSETS = {
     "investment_logs": [],
 }
 
+
 class SettingsPayload(BaseModel):
     default_provider: str
     model_name: str
@@ -39,14 +39,6 @@ class SettingsPayload(BaseModel):
     local_only: bool
 
 
-class SleepLogCreate(BaseModel):
-    start_at: datetime
-    end_at: datetime
-    note: str | None = None
-
-
-class SleepLogOut(SleepLogCreate):
-    id: int
 
 
 DEFAULT_SETTINGS = SettingsPayload(
@@ -73,6 +65,16 @@ def _next_id(rows: list[dict[str, Any]]) -> int:
     return max([int(row.get("id", 0)) for row in rows], default=0) + 1
 
 
+def _parse_datetime(value: str) -> datetime:
+    text = value.strip()
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    try:
+        return datetime.fromisoformat(text)
+    except ValueError as exc:
+        raise ValueError("datetime must be ISO8601 format") from exc
+
+
 def _parse_decimal(amount: str) -> Decimal:
     try:
         value = Decimal(amount)
@@ -89,16 +91,8 @@ def _load_tasks() -> list[TaskOut]:
 
 
 def _save_tasks(tasks: list[TaskOut]) -> None:
-    write_json(TASKS_FILE, [row.model_dump(mode="json") for row in tasks])
+    write_json(TASKS_FILE, [row.model_dump(mode="json", by_alias=True) for row in tasks])
 
-
-def _load_sleep() -> list[SleepLogOut]:
-    rows = read_json(SLEEP_FILE, [])
-    return [SleepLogOut.model_validate(row) for row in rows]
-
-
-def _save_sleep(rows: list[SleepLogOut]) -> None:
-    write_json(SLEEP_FILE, [row.model_dump(mode="json") for row in rows])
 
 
 def _load_feed() -> list[dict[str, Any]]:
@@ -147,27 +141,49 @@ def task_create(
     title: str,
     category: str = "general",
     importance: str = "medium",
+    task_type: str = "task",
+    status: str = "todo",
     start_at: str | None = None,
     end_at: str | None = None,
+    planned_start_at: str | None = None,
+    planned_end_at: str | None = None,
+    actual_start_at: str | None = None,
+    actual_end_at: str | None = None,
+    completed_at: str | None = None,
+    note: str | None = None,
 ) -> dict[str, Any]:
     """Create one task."""
+    planned_start_dt = _parse_datetime(planned_start_at) if planned_start_at else (_parse_datetime(start_at) if start_at else None)
+    planned_end_dt = _parse_datetime(planned_end_at) if planned_end_at else (_parse_datetime(end_at) if end_at else None)
+    actual_start_dt = _parse_datetime(actual_start_at) if actual_start_at else None
+    actual_end_dt = _parse_datetime(actual_end_at) if actual_end_at else None
+    completed_dt = _parse_datetime(completed_at) if completed_at else None
+
+    if planned_start_dt and planned_end_dt and planned_end_dt <= planned_start_dt:
+        raise ValueError("end_at must be later than start_at")
+    if actual_start_dt and actual_end_dt and actual_end_dt <= actual_start_dt:
+        raise ValueError("actual_end_at must be later than actual_start_at")
+
     try:
         payload = TaskCreate(
             title=title,
             category=category,
             importance=importance,
-            start_at=start_at,
-            end_at=end_at,
+            type=task_type,
+            status=status,
+            planned_start_at=planned_start_dt,
+            planned_end_at=planned_end_dt,
+            actual_start_at=actual_start_dt,
+            actual_end_at=actual_end_dt,
+            completed_at=completed_dt,
+            note=note,
         )
     except ValidationError as exc:
         raise ValueError(str(exc)) from exc
 
-    if payload.start_at and payload.end_at and payload.end_at <= payload.start_at:
-        raise ValueError("end_at must be later than start_at")
-
     tasks = _load_tasks()
     next_id = max([row.id for row in tasks], default=0) + 1
-    task = TaskOut(id=next_id, **payload.model_dump())
+    task = TaskOut(id=next_id, **payload.model_dump(by_alias=True))
     tasks.append(task)
     _save_tasks(tasks)
     body = task.model_dump(mode="json")
@@ -197,8 +213,16 @@ def task_update(
     title: str | None = None,
     category: str | None = None,
     importance: str | None = None,
+    task_type: str | None = None,
+    status: str | None = None,
     start_at: str | None = None,
     end_at: str | None = None,
+    planned_start_at: str | None = None,
+    planned_end_at: str | None = None,
+    actual_start_at: str | None = None,
+    actual_end_at: str | None = None,
+    completed_at: str | None = None,
+    note: str | None = None,
 ) -> dict[str, Any]:
     """Update one task. Any None field keeps original value."""
     tasks = _load_tasks()
@@ -213,13 +237,39 @@ def task_update(
         merged["category"] = category
     if importance is not None:
         merged["importance"] = importance
-    if start_at is not None:
-        merged["start_at"] = datetime.fromisoformat(start_at)
-    if end_at is not None:
-        merged["end_at"] = datetime.fromisoformat(end_at)
+    if task_type is not None:
+        merged["type"] = task_type
+    if status is not None:
+        merged["status"] = status
+    if note is not None:
+        merged["note"] = note
+    if planned_start_at is not None:
+        merged["planned_start_at"] = _parse_datetime(planned_start_at)
+    elif start_at is not None:
+        merged["planned_start_at"] = _parse_datetime(start_at)
+    if planned_end_at is not None:
+        merged["planned_end_at"] = _parse_datetime(planned_end_at)
+    elif end_at is not None:
+        merged["planned_end_at"] = _parse_datetime(end_at)
+    if actual_start_at is not None:
+        merged["actual_start_at"] = _parse_datetime(actual_start_at)
+    if actual_end_at is not None:
+        merged["actual_end_at"] = _parse_datetime(actual_end_at)
+    if completed_at is not None:
+        merged["completed_at"] = _parse_datetime(completed_at)
 
-    if merged.get("start_at") and merged.get("end_at") and merged["end_at"] <= merged["start_at"]:
+    if (
+        merged.get("planned_start_at")
+        and merged.get("planned_end_at")
+        and merged["planned_end_at"] <= merged["planned_start_at"]
+    ):
         raise ValueError("end_at must be later than start_at")
+    if (
+        merged.get("actual_start_at")
+        and merged.get("actual_end_at")
+        and merged["actual_end_at"] <= merged["actual_start_at"]
+    ):
+        raise ValueError("actual_end_at must be later than actual_start_at")
 
     updated = TaskOut.model_validate(merged)
     rows = [updated if row.id == task_id else row for row in tasks]
@@ -230,65 +280,28 @@ def task_update(
 
 @mcp.tool()
 def task_mark_done(task_id: int, done_at: str | None = None) -> dict[str, Any]:
-    """Mark one task as done by setting end_at (legacy task model)."""
+    """Mark one task as done."""
     tasks = _load_tasks()
     target = next((row for row in tasks if row.id == task_id), None)
     if not target:
         raise ValueError("task not found")
-    if target.end_at:
+    if target.status == "done":
         return target.model_dump(mode="json")
 
-    end_time = datetime.fromisoformat(done_at) if done_at else datetime.now(UTC)
-    if target.start_at and end_time <= target.start_at:
-        end_time = target.start_at
+    end_time = _parse_datetime(done_at) if done_at else datetime.now(UTC)
+    if target.actual_start_at and end_time <= target.actual_start_at:
+        end_time = target.actual_start_at
 
     merged = target.model_dump(mode="python")
-    merged["end_at"] = end_time
+    merged["status"] = "done"
+    merged["completed_at"] = end_time
+    merged["actual_end_at"] = end_time
     updated = TaskOut.model_validate(merged)
     rows = [updated if row.id == task_id else row for row in tasks]
     _save_tasks(rows)
     _append_audit("task_mark_done", {"id": task_id})
     return updated.model_dump(mode="json")
 
-
-@mcp.tool()
-def sleep_log_list(limit: int = 30) -> list[dict[str, Any]]:
-    """List sleep logs ordered by end time desc."""
-    rows = sorted(_load_sleep(), key=lambda row: row.end_at, reverse=True)
-    return [row.model_dump(mode="json") for row in rows[: max(1, min(limit, 200))]]
-
-
-@mcp.tool()
-def sleep_log_create(start_at: str, end_at: str, note: str | None = None) -> dict[str, Any]:
-    """Create one sleep log."""
-    try:
-        payload = SleepLogCreate(start_at=start_at, end_at=end_at, note=note)
-    except ValidationError as exc:
-        raise ValueError(str(exc)) from exc
-    if payload.end_at <= payload.start_at:
-        raise ValueError("end_at must be later than start_at")
-
-    rows = _load_sleep()
-    next_id = max([row.id for row in rows], default=0) + 1
-    item = SleepLogOut(id=next_id, **payload.model_dump())
-    rows.append(item)
-    _save_sleep(rows)
-    _append_audit("sleep_log_create", {"id": next_id})
-    return item.model_dump(mode="json")
-
-
-@mcp.tool()
-def sleep_log_delete(log_id: int, confirm: bool = False) -> dict[str, Any]:
-    """Delete one sleep log (confirm=true required)."""
-    if not confirm:
-        raise ValueError("confirm must be true to delete sleep log")
-    rows = _load_sleep()
-    new_rows = [row for row in rows if row.id != log_id]
-    if len(new_rows) == len(rows):
-        raise ValueError("sleep log not found")
-    _save_sleep(new_rows)
-    _append_audit("sleep_log_delete", {"id": log_id})
-    return {"deleted": True, "id": log_id}
 
 
 @mcp.tool()
