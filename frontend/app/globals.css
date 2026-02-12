@@ -351,6 +351,18 @@ a {
   gap: 10px;
 }
 
+.task-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.task-edit {
+  display: grid;
+  gap: 10px;
+}
+
 .task-form-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
