@@ -8,6 +8,7 @@ import { createTask, deleteTask, getTasks, updateTask, type TaskItem } from "@/l
 type Importance = "high" | "medium" | "low";
 type TaskType = "task" | "sleep";
 type TaskStatus = "todo" | "in_progress" | "done" | "skipped";
+type RecurrenceFreq = "daily" | "weekly" | "monthly" | "yearly";
 
 type TaskDraft = {
   title: string;
@@ -33,16 +34,16 @@ function toInputDateTime(value: string | null): string {
 }
 
 function importanceLabel(value: string): string {
-  if (value === "high") return "高";
-  if (value === "medium") return "中";
-  return "低";
+  if (value === "high") return "high";
+  if (value === "medium") return "medium";
+  return "low";
 }
 
 function statusLabel(value: string): string {
-  if (value === "in_progress") return "进行中";
-  if (value === "done") return "已完成";
-  if (value === "skipped") return "已跳过";
-  return "待处理";
+  if (value === "in_progress") return "in progress";
+  if (value === "done") return "done";
+  if (value === "skipped") return "skipped";
+  return "todo";
 }
 
 function toDraft(task: TaskItem): TaskDraft {
@@ -72,17 +73,27 @@ export default function TasksPage() {
   const [error, setError] = useState("");
 
   const [title, setTitle] = useState("");
-  const [category, setCategory] = useState("日常");
+  const [category, setCategory] = useState("general");
   const [taskType, setTaskType] = useState<TaskType>("task");
   const [importance, setImportance] = useState<Importance>("medium");
   const [plannedStartAt, setPlannedStartAt] = useState("");
   const [plannedEndAt, setPlannedEndAt] = useState("");
   const [note, setNote] = useState("");
+
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurrenceFreq, setRecurrenceFreq] = useState<RecurrenceFreq>("weekly");
+  const [recurrenceInterval, setRecurrenceInterval] = useState("1");
+  const [recurrenceWeekdays, setRecurrenceWeekdays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [recurrenceUntil, setRecurrenceUntil] = useState("");
+
   const [editDraft, setEditDraft] = useState<TaskDraft | null>(null);
 
   const canSubmit = useMemo(() => {
-    return title.trim().length > 0 && category.trim().length > 0 && !submitting;
-  }, [title, category, submitting]);
+    if (submitting) return false;
+    if (title.trim().length === 0 || category.trim().length === 0) return false;
+    if (isRecurring && (!plannedStartAt || !plannedEndAt)) return false;
+    return true;
+  }, [title, category, submitting, isRecurring, plannedStartAt, plannedEndAt]);
 
   const loadTasks = async () => {
     setLoading(true);
@@ -99,9 +110,7 @@ export default function TasksPage() {
   }, []);
 
   const handleCreate = async () => {
-    if (!canSubmit) {
-      return;
-    }
+    if (!canSubmit) return;
 
     setError("");
     setSubmitting(true);
@@ -114,32 +123,44 @@ export default function TasksPage() {
         status: "todo",
         planned_start_at: plannedStartAt ? toApiDateTime(plannedStartAt) : null,
         planned_end_at: plannedEndAt ? toApiDateTime(plannedEndAt) : null,
-        note: note.trim() || null
+        note: note.trim() || null,
+        is_recurring_template: isRecurring,
+        recurrence: isRecurring
+          ? {
+              freq: recurrenceFreq,
+              interval: Math.max(1, Number.parseInt(recurrenceInterval || "1", 10)),
+              weekdays: recurrenceFreq === "weekly" ? recurrenceWeekdays : null,
+              until: recurrenceUntil ? toApiDateTime(recurrenceUntil) : null
+            }
+          : null
       });
       setTitle("");
-      setCategory(taskType === "sleep" ? "睡眠" : "日常");
+      setCategory(taskType === "sleep" ? "sleep" : "general");
       setImportance("medium");
       setPlannedStartAt("");
       setPlannedEndAt("");
       setNote("");
+      setIsRecurring(false);
+      setRecurrenceFreq("weekly");
+      setRecurrenceInterval("1");
+      setRecurrenceWeekdays([1, 2, 3, 4, 5]);
+      setRecurrenceUntil("");
       await loadTasks();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "创建任务失败");
+      setError(err instanceof Error ? err.message : "failed to create task");
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDelete = async (taskId: number) => {
-    if (!window.confirm("确认删除这个任务吗？此操作不可撤销。")) {
-      return;
-    }
+    if (!window.confirm("Confirm delete this task?")) return;
 
     try {
       await deleteTask(taskId);
       await loadTasks();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "删除任务失败");
+      setError(err instanceof Error ? err.message : "failed to delete task");
     }
   };
 
@@ -156,7 +177,7 @@ export default function TasksPage() {
       });
       await loadTasks();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "更新任务状态失败");
+      setError(err instanceof Error ? err.message : "failed to update status");
     } finally {
       setSavingId(null);
     }
@@ -169,9 +190,7 @@ export default function TasksPage() {
   };
 
   const handleSaveEdit = async (taskId: number) => {
-    if (!editDraft) {
-      return;
-    }
+    if (!editDraft) return;
 
     try {
       setSavingId(taskId);
@@ -192,7 +211,7 @@ export default function TasksPage() {
       setEditDraft(null);
       await loadTasks();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "保存任务失败");
+      setError(err instanceof Error ? err.message : "failed to save task");
     } finally {
       setSavingId(null);
     }
@@ -202,14 +221,14 @@ export default function TasksPage() {
     <main className="page-shell">
       <TopNav />
       <section className="panel placeholder-page">
-        <h1>任务栏</h1>
-        <p>任务统一支持计划时间、实际时间、完成标记和随时编辑。睡眠也作为任务管理。</p>
+        <h1>Tasks</h1>
+        <p>Support planned/actual time, completion mark, editing, and recurring templates.</p>
 
         <div className="task-form">
-          <input className="quick-input" placeholder="任务标题" value={title} onChange={(e) => setTitle(e.target.value)} />
+          <input className="quick-input" placeholder="Task title" value={title} onChange={(e) => setTitle(e.target.value)} />
           <div className="task-form-row">
             <label>
-              类型
+              Type
               <select
                 className="quick-input"
                 value={taskType}
@@ -217,53 +236,112 @@ export default function TasksPage() {
                   const value = e.target.value as TaskType;
                   setTaskType(value);
                   if (value === "sleep") {
-                    setCategory("睡眠");
-                    if (!title.trim()) {
-                      setTitle("睡眠");
-                    }
+                    setCategory("sleep");
+                    if (!title.trim()) setTitle("sleep");
                   }
                 }}
               >
-                <option value="task">普通任务</option>
-                <option value="sleep">睡眠</option>
+                <option value="task">Task</option>
+                <option value="sleep">Sleep</option>
               </select>
             </label>
             <label>
-              分类
+              Category
               <input className="quick-input" value={category} onChange={(e) => setCategory(e.target.value)} />
             </label>
             <label>
-              重要性
+              Importance
               <select className="quick-input" value={importance} onChange={(e) => setImportance(e.target.value as Importance)}>
-                <option value="high">高</option>
-                <option value="medium">中</option>
-                <option value="low">低</option>
+                <option value="high">high</option>
+                <option value="medium">medium</option>
+                <option value="low">low</option>
               </select>
             </label>
           </div>
           <div className="task-form-row">
             <label>
-              计划开始
+              Planned start
               <input className="quick-input" type="datetime-local" value={plannedStartAt} onChange={(e) => setPlannedStartAt(e.target.value)} />
             </label>
             <label>
-              计划结束
+              Planned end
               <input className="quick-input" type="datetime-local" value={plannedEndAt} onChange={(e) => setPlannedEndAt(e.target.value)} />
             </label>
             <label>
-              备注
+              Note
               <input className="quick-input" value={note} onChange={(e) => setNote(e.target.value)} />
             </label>
           </div>
+
+          <div className="task-form-row">
+            <label>
+              <input type="checkbox" checked={isRecurring} onChange={(e) => setIsRecurring(e.target.checked)} />
+              &nbsp;Recurring task
+            </label>
+            {isRecurring ? (
+              <>
+                <label>
+                  Frequency
+                  <select className="quick-input" value={recurrenceFreq} onChange={(e) => setRecurrenceFreq(e.target.value as RecurrenceFreq)}>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="yearly">Yearly</option>
+                  </select>
+                </label>
+                <label>
+                  Interval
+                  <input
+                    className="quick-input"
+                    type="number"
+                    min={1}
+                    value={recurrenceInterval}
+                    onChange={(e) => setRecurrenceInterval(e.target.value)}
+                  />
+                </label>
+                <label>
+                  Until
+                  <input
+                    className="quick-input"
+                    type="datetime-local"
+                    value={recurrenceUntil}
+                    onChange={(e) => setRecurrenceUntil(e.target.value)}
+                  />
+                </label>
+              </>
+            ) : null}
+          </div>
+
+          {isRecurring && recurrenceFreq === "weekly" ? (
+            <div className="task-form-row">
+              <label>Weekdays</label>
+              {[1, 2, 3, 4, 5, 6, 0].map((day) => (
+                <label key={day}>
+                  <input
+                    type="checkbox"
+                    checked={recurrenceWeekdays.includes(day)}
+                    onChange={(e) => {
+                      setRecurrenceWeekdays((prev) => {
+                        if (e.target.checked) return [...prev, day].sort();
+                        return prev.filter((v) => v !== day);
+                      });
+                    }}
+                  />
+                  &nbsp;{["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][day === 0 ? 6 : day - 1]}
+                </label>
+              ))}
+            </div>
+          ) : null}
+
           <button className="pill" type="button" disabled={!canSubmit} onClick={() => void handleCreate()}>
-            {submitting ? "创建中..." : "创建任务"}
+            {submitting ? "Creating..." : "Create task"}
           </button>
           {error ? <p className="wealth-note">{error}</p> : null}
         </div>
 
         <div className="feed-list">
-          {loading ? <article className="feed-item">任务加载中...</article> : null}
-          {!loading && tasks.length === 0 ? <article className="feed-item">暂无任务</article> : null}
+          {loading ? <article className="feed-item">Loading tasks...</article> : null}
+          {!loading && tasks.length === 0 ? <article className="feed-item">No tasks</article> : null}
           {tasks.map((task) => {
             const isEditing = editingId === task.id && !!editDraft;
             return (
@@ -271,26 +349,27 @@ export default function TasksPage() {
                 {!isEditing ? (
                   <>
                     <div className="feed-meta">
-                      {task.type === "sleep" ? "睡眠" : task.category} · 重要性 {importanceLabel(task.importance)} · 状态 {statusLabel(task.status)}
+                      {task.type === "sleep" ? "sleep" : task.category} · importance {importanceLabel(task.importance)} · status {statusLabel(task.status)}
                     </div>
+                    {task.template_id ? <div className="feed-meta">recurring instance</div> : null}
                     <div>{task.title}</div>
                     <div className="feed-meta">
-                      计划: {toInputDateTime(task.planned_start_at) || "--"} - {toInputDateTime(task.planned_end_at) || "--"}
+                      Planned: {toInputDateTime(task.planned_start_at) || "--"} - {toInputDateTime(task.planned_end_at) || "--"}
                     </div>
                     <div className="feed-meta">
-                      实际: {toInputDateTime(task.actual_start_at) || "--"} - {toInputDateTime(task.actual_end_at) || "--"}
+                      Actual: {toInputDateTime(task.actual_start_at) || "--"} - {toInputDateTime(task.actual_end_at) || "--"}
                     </div>
-                    <div className="feed-meta">完成时间: {toInputDateTime(task.completed_at) || "--"}</div>
+                    <div className="feed-meta">Completed: {toInputDateTime(task.completed_at) || "--"}</div>
                     {task.note ? <div>{task.note}</div> : null}
                     <div className="task-actions">
                       <button className="pill" type="button" disabled={savingId === task.id} onClick={() => void handleToggleDone(task)}>
-                        {task.status === "done" ? "撤销完成" : "标记完成"}
+                        {task.status === "done" ? "Undo done" : "Mark done"}
                       </button>
                       <button className="pill" type="button" disabled={savingId === task.id} onClick={() => startEdit(task)}>
-                        编辑
+                        Edit
                       </button>
                       <button className="pill danger" type="button" disabled={savingId === task.id} onClick={() => void handleDelete(task.id)}>
-                        删除
+                        Delete
                       </button>
                     </div>
                   </>
@@ -298,71 +377,47 @@ export default function TasksPage() {
                   <div className="task-edit">
                     <div className="task-form-row">
                       <label>
-                        标题
-                        <input
-                          className="quick-input"
-                          value={editDraft.title}
-                          onChange={(e) => setEditDraft({ ...editDraft, title: e.target.value })}
-                        />
+                        Title
+                        <input className="quick-input" value={editDraft.title} onChange={(e) => setEditDraft({ ...editDraft, title: e.target.value })} />
                       </label>
                       <label>
-                        分类
-                        <input
-                          className="quick-input"
-                          value={editDraft.category}
-                          onChange={(e) => setEditDraft({ ...editDraft, category: e.target.value })}
-                        />
+                        Category
+                        <input className="quick-input" value={editDraft.category} onChange={(e) => setEditDraft({ ...editDraft, category: e.target.value })} />
                       </label>
                       <label>
-                        类型
-                        <select
-                          className="quick-input"
-                          value={editDraft.type}
-                          onChange={(e) => setEditDraft({ ...editDraft, type: e.target.value as TaskType })}
-                        >
-                          <option value="task">普通任务</option>
-                          <option value="sleep">睡眠</option>
+                        Type
+                        <select className="quick-input" value={editDraft.type} onChange={(e) => setEditDraft({ ...editDraft, type: e.target.value as TaskType })}>
+                          <option value="task">Task</option>
+                          <option value="sleep">Sleep</option>
                         </select>
                       </label>
                     </div>
                     <div className="task-form-row">
                       <label>
-                        状态
-                        <select
-                          className="quick-input"
-                          value={editDraft.status}
-                          onChange={(e) => setEditDraft({ ...editDraft, status: e.target.value as TaskStatus })}
-                        >
-                          <option value="todo">待处理</option>
-                          <option value="in_progress">进行中</option>
-                          <option value="done">已完成</option>
-                          <option value="skipped">已跳过</option>
+                        Status
+                        <select className="quick-input" value={editDraft.status} onChange={(e) => setEditDraft({ ...editDraft, status: e.target.value as TaskStatus })}>
+                          <option value="todo">todo</option>
+                          <option value="in_progress">in progress</option>
+                          <option value="done">done</option>
+                          <option value="skipped">skipped</option>
                         </select>
                       </label>
                       <label>
-                        重要性
-                        <select
-                          className="quick-input"
-                          value={editDraft.importance}
-                          onChange={(e) => setEditDraft({ ...editDraft, importance: e.target.value as Importance })}
-                        >
-                          <option value="high">高</option>
-                          <option value="medium">中</option>
-                          <option value="low">低</option>
+                        Importance
+                        <select className="quick-input" value={editDraft.importance} onChange={(e) => setEditDraft({ ...editDraft, importance: e.target.value as Importance })}>
+                          <option value="high">high</option>
+                          <option value="medium">medium</option>
+                          <option value="low">low</option>
                         </select>
                       </label>
                       <label>
-                        备注
-                        <input
-                          className="quick-input"
-                          value={editDraft.note}
-                          onChange={(e) => setEditDraft({ ...editDraft, note: e.target.value })}
-                        />
+                        Note
+                        <input className="quick-input" value={editDraft.note} onChange={(e) => setEditDraft({ ...editDraft, note: e.target.value })} />
                       </label>
                     </div>
                     <div className="task-form-row">
                       <label>
-                        计划开始
+                        Planned start
                         <input
                           className="quick-input"
                           type="datetime-local"
@@ -371,7 +426,7 @@ export default function TasksPage() {
                         />
                       </label>
                       <label>
-                        计划结束
+                        Planned end
                         <input
                           className="quick-input"
                           type="datetime-local"
@@ -380,7 +435,7 @@ export default function TasksPage() {
                         />
                       </label>
                       <label>
-                        实际开始
+                        Actual start
                         <input
                           className="quick-input"
                           type="datetime-local"
@@ -391,7 +446,7 @@ export default function TasksPage() {
                     </div>
                     <div className="task-form-row">
                       <label>
-                        实际结束
+                        Actual end
                         <input
                           className="quick-input"
                           type="datetime-local"
@@ -402,7 +457,7 @@ export default function TasksPage() {
                     </div>
                     <div className="task-actions">
                       <button className="pill" type="button" disabled={savingId === task.id} onClick={() => void handleSaveEdit(task.id)}>
-                        保存
+                        Save
                       </button>
                       <button
                         className="pill"
@@ -413,7 +468,7 @@ export default function TasksPage() {
                           setEditDraft(null);
                         }}
                       >
-                        取消
+                        Cancel
                       </button>
                     </div>
                   </div>

@@ -151,6 +151,11 @@ def task_create(
     actual_end_at: str | None = None,
     completed_at: str | None = None,
     note: str | None = None,
+    is_recurring_template: bool = False,
+    recurrence_freq: str | None = None,
+    recurrence_interval: int = 1,
+    recurrence_weekdays: list[int] | None = None,
+    recurrence_until: str | None = None,
 ) -> dict[str, Any]:
     """Create one task."""
     planned_start_dt = _parse_datetime(planned_start_at) if planned_start_at else (_parse_datetime(start_at) if start_at else None)
@@ -158,6 +163,7 @@ def task_create(
     actual_start_dt = _parse_datetime(actual_start_at) if actual_start_at else None
     actual_end_dt = _parse_datetime(actual_end_at) if actual_end_at else None
     completed_dt = _parse_datetime(completed_at) if completed_at else None
+    recurrence_until_dt = _parse_datetime(recurrence_until) if recurrence_until else None
 
     if planned_start_dt and planned_end_dt and planned_end_dt <= planned_start_dt:
         raise ValueError("end_at must be later than start_at")
@@ -177,6 +183,17 @@ def task_create(
             actual_end_at=actual_end_dt,
             completed_at=completed_dt,
             note=note,
+            is_recurring_template=is_recurring_template,
+            recurrence=(
+                {
+                    "freq": recurrence_freq,
+                    "interval": recurrence_interval,
+                    "weekdays": recurrence_weekdays,
+                    "until": recurrence_until_dt,
+                }
+                if recurrence_freq
+                else None
+            ),
         )
     except ValidationError as exc:
         raise ValueError(str(exc)) from exc
@@ -223,6 +240,11 @@ def task_update(
     actual_end_at: str | None = None,
     completed_at: str | None = None,
     note: str | None = None,
+    is_recurring_template: bool | None = None,
+    recurrence_freq: str | None = None,
+    recurrence_interval: int | None = None,
+    recurrence_weekdays: list[int] | None = None,
+    recurrence_until: str | None = None,
 ) -> dict[str, Any]:
     """Update one task. Any None field keeps original value."""
     tasks = _load_tasks()
@@ -243,6 +265,8 @@ def task_update(
         merged["status"] = status
     if note is not None:
         merged["note"] = note
+    if is_recurring_template is not None:
+        merged["is_recurring_template"] = is_recurring_template
     if planned_start_at is not None:
         merged["planned_start_at"] = _parse_datetime(planned_start_at)
     elif start_at is not None:
@@ -257,6 +281,13 @@ def task_update(
         merged["actual_end_at"] = _parse_datetime(actual_end_at)
     if completed_at is not None:
         merged["completed_at"] = _parse_datetime(completed_at)
+    if recurrence_freq is not None:
+        merged["recurrence"] = {
+            "freq": recurrence_freq,
+            "interval": recurrence_interval if recurrence_interval is not None else 1,
+            "weekdays": recurrence_weekdays,
+            "until": _parse_datetime(recurrence_until) if recurrence_until else None,
+        }
 
     if (
         merged.get("planned_start_at")
