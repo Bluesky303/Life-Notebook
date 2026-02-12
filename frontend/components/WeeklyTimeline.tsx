@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { getTasks, type TaskItem } from "@/lib/api";
+import { getSleepLogs, getTasks, type SleepLog, type TaskItem } from "@/lib/api";
 
 type Importance = "high" | "medium" | "low";
 
@@ -44,8 +44,44 @@ function normalizeImportance(value: string): Importance {
   return "low";
 }
 
+function createEmptyDayEvents(): Record<string, TimelineBlock[]> {
+  return Object.fromEntries(dayOrder.map((day) => [day, []]));
+}
+
+function pushRange(
+  dayEvents: Record<string, TimelineBlock[]>,
+  startDate: Date,
+  endDate: Date,
+  blockFactory: (startMinute: number, endMinute: number) => TimelineBlock
+): void {
+  const cursor = new Date(startDate);
+  while (cursor < endDate) {
+    const dayName = weekDayMap[cursor.getDay()];
+    if (!dayEvents[dayName]) {
+      break;
+    }
+
+    const dayStart = new Date(cursor);
+    dayStart.setHours(0, 0, 0, 0);
+    const nextDayStart = new Date(dayStart);
+    nextDayStart.setDate(nextDayStart.getDate() + 1);
+
+    const segmentEnd = endDate < nextDayStart ? endDate : nextDayStart;
+    const startMinute = clampMinute(cursor.getHours() * 60 + cursor.getMinutes());
+    const endMinute = clampMinute(
+      segmentEnd.getTime() === nextDayStart.getTime() ? 24 * 60 : segmentEnd.getHours() * 60 + segmentEnd.getMinutes()
+    );
+
+    if (endMinute > startMinute) {
+      dayEvents[dayName].push(blockFactory(startMinute, endMinute));
+    }
+
+    cursor.setTime(segmentEnd.getTime());
+  }
+}
+
 function mapTasksToDayEvents(tasks: TaskItem[]): Record<string, TimelineBlock[]> {
-  const dayEvents: Record<string, TimelineBlock[]> = Object.fromEntries(dayOrder.map((day) => [day, []]));
+  const dayEvents: Record<string, TimelineBlock[]> = createEmptyDayEvents();
 
   for (const task of tasks) {
     if (!task.start_at || !task.end_at) {
@@ -54,30 +90,17 @@ function mapTasksToDayEvents(tasks: TaskItem[]): Record<string, TimelineBlock[]>
 
     const startDate = new Date(task.start_at);
     const endDate = new Date(task.end_at);
-
-    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || endDate <= startDate) {
       continue;
     }
 
-    const day = weekDayMap[startDate.getDay()];
-    if (!dayEvents[day]) {
-      continue;
-    }
-
-    const startMinute = clampMinute(startDate.getHours() * 60 + startDate.getMinutes());
-    const endMinute = clampMinute(endDate.getHours() * 60 + endDate.getMinutes());
-
-    if (endMinute <= startMinute) {
-      continue;
-    }
-
-    dayEvents[day].push({
+    pushRange(dayEvents, startDate, endDate, (startMinute, endMinute) => ({
       startMinute,
       endMinute,
       title: task.title,
       kind: "task",
       importance: normalizeImportance(task.importance)
-    });
+    }));
   }
 
   for (const day of dayOrder) {
@@ -87,13 +110,44 @@ function mapTasksToDayEvents(tasks: TaskItem[]): Record<string, TimelineBlock[]>
   return dayEvents;
 }
 
-function createDayBlocks(dayTaskBlocks: TimelineBlock[]): TimelineBlock[] {
-  const sleepBlocks: TimelineBlock[] = [
-    { startMinute: 0, endMinute: 7 * 60, title: "睡眠", kind: "sleep" },
-    { startMinute: 23 * 60, endMinute: 24 * 60, title: "睡眠", kind: "sleep" }
-  ];
+function mapSleepToDayEvents(sleepLogs: SleepLog[]): Record<string, TimelineBlock[]> {
+  const dayEvents: Record<string, TimelineBlock[]> = createEmptyDayEvents();
 
-  const fixedBlocks = [...sleepBlocks, ...dayTaskBlocks].sort((a, b) => a.startMinute - b.startMinute);
+  for (const log of sleepLogs) {
+    const startDate = new Date(log.start_at);
+    const endDate = new Date(log.end_at);
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || endDate <= startDate) {
+      continue;
+    }
+
+    pushRange(dayEvents, startDate, endDate, (startMinute, endMinute) => ({
+      startMinute,
+      endMinute,
+      title: "睡眠",
+      kind: "sleep"
+    }));
+  }
+
+  for (const day of dayOrder) {
+    dayEvents[day] = dayEvents[day].sort((a, b) => a.startMinute - b.startMinute);
+  }
+
+  return dayEvents;
+}
+
+function mergeDayEvents(
+  taskMap: Record<string, TimelineBlock[]>,
+  sleepMap: Record<string, TimelineBlock[]>
+): Record<string, TimelineBlock[]> {
+  const merged: Record<string, TimelineBlock[]> = createEmptyDayEvents();
+  for (const day of dayOrder) {
+    merged[day] = [...(sleepMap[day] ?? []), ...(taskMap[day] ?? [])].sort((a, b) => a.startMinute - b.startMinute);
+  }
+  return merged;
+}
+
+function createDayBlocks(dayBlocks: TimelineBlock[]): TimelineBlock[] {
+  const fixedBlocks = [...dayBlocks].sort((a, b) => a.startMinute - b.startMinute);
 
   const blocks: TimelineBlock[] = [];
   let cursor = 0;
@@ -140,15 +194,18 @@ function blockClassName(block: TimelineBlock): string {
 
 export function WeeklyTimeline() {
   const [tasks, setTasks] = useState<TaskItem[]>([]);
+  const [sleepLogs, setSleepLogs] = useState<SleepLog[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const data = await getTasks();
-        setTasks(data);
+        const [taskData, sleepData] = await Promise.all([getTasks(), getSleepLogs()]);
+        setTasks(taskData);
+        setSleepLogs(sleepData);
       } catch {
         setTasks([]);
+        setSleepLogs([]);
       } finally {
         setLoading(false);
       }
@@ -158,12 +215,14 @@ export function WeeklyTimeline() {
   }, []);
 
   const dayTaskMap = useMemo(() => mapTasksToDayEvents(tasks), [tasks]);
+  const daySleepMap = useMemo(() => mapSleepToDayEvents(sleepLogs), [sleepLogs]);
+  const dayMergedMap = useMemo(() => mergeDayEvents(dayTaskMap, daySleepMap), [dayTaskMap, daySleepMap]);
   const hourLabels = useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
 
   return (
     <section className="panel timeline-panel">
       <p className="panel-title">一周时间表</p>
-      {loading ? <p className="wealth-note">正在读取任务...</p> : null}
+      {loading ? <p className="wealth-note">正在读取任务和睡眠记录...</p> : null}
       <div className="timeline-board">
         <div className="time-axis">
           <div className="day-name axis-title">时间</div>
@@ -181,7 +240,7 @@ export function WeeklyTimeline() {
 
         <div className="timeline-grid">
           {dayOrder.map((day) => {
-            const blocks = createDayBlocks(dayTaskMap[day] ?? []);
+            const blocks = createDayBlocks(dayMergedMap[day] ?? []);
 
             return (
               <article className="day-col" key={day}>

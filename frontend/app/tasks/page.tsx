@@ -3,7 +3,16 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { TopNav } from "@/components/TopNav";
-import { createTask, deleteTask, getTasks, type TaskItem } from "@/lib/api";
+import {
+  createSleepLog,
+  createTask,
+  deleteSleepLog,
+  deleteTask,
+  getSleepLogs,
+  getTasks,
+  type SleepLog,
+  type TaskItem
+} from "@/lib/api";
 
 type Importance = "high" | "medium" | "low";
 
@@ -25,32 +34,41 @@ function importanceLabel(value: string): string {
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<TaskItem[]>([]);
+  const [sleepLogs, setSleepLogs] = useState<SleepLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [sleepSubmitting, setSleepSubmitting] = useState(false);
 
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("日常");
   const [importance, setImportance] = useState<Importance>("medium");
   const [startAt, setStartAt] = useState("");
   const [endAt, setEndAt] = useState("");
+  const [sleepStartAt, setSleepStartAt] = useState("");
+  const [sleepEndAt, setSleepEndAt] = useState("");
+  const [sleepNote, setSleepNote] = useState("");
   const [error, setError] = useState("");
 
   const canSubmit = useMemo(() => {
     return title.trim().length > 0 && category.trim().length > 0 && startAt.length > 0 && endAt.length > 0 && !submitting;
   }, [title, category, startAt, endAt, submitting]);
+  const canSubmitSleep = useMemo(() => {
+    return sleepStartAt.length > 0 && sleepEndAt.length > 0 && !sleepSubmitting;
+  }, [sleepStartAt, sleepEndAt, sleepSubmitting]);
 
-  const loadTasks = async () => {
+  const loadAll = async () => {
     setLoading(true);
     try {
-      const data = await getTasks();
-      setTasks(data);
+      const [taskData, sleepData] = await Promise.all([getTasks(), getSleepLogs()]);
+      setTasks(taskData);
+      setSleepLogs(sleepData);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    void loadTasks();
+    void loadAll();
   }, []);
 
   const handleCreate = async () => {
@@ -73,7 +91,7 @@ export default function TasksPage() {
       setImportance("medium");
       setStartAt("");
       setEndAt("");
-      await loadTasks();
+      await loadAll();
     } catch (err) {
       setError(err instanceof Error ? err.message : "创建任务失败");
     } finally {
@@ -88,9 +106,46 @@ export default function TasksPage() {
 
     try {
       await deleteTask(taskId);
-      await loadTasks();
+      await loadAll();
     } catch (err) {
       setError(err instanceof Error ? err.message : "删除任务失败");
+    }
+  };
+
+  const handleCreateSleepLog = async () => {
+    if (!canSubmitSleep) {
+      return;
+    }
+
+    setSleepSubmitting(true);
+    setError("");
+    try {
+      await createSleepLog({
+        start_at: toApiDateTime(sleepStartAt),
+        end_at: toApiDateTime(sleepEndAt),
+        note: sleepNote.trim() || undefined
+      });
+      setSleepStartAt("");
+      setSleepEndAt("");
+      setSleepNote("");
+      await loadAll();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "记录睡眠失败");
+    } finally {
+      setSleepSubmitting(false);
+    }
+  };
+
+  const handleDeleteSleepLog = async (logId: number) => {
+    if (!window.confirm("确认删除这条睡眠记录吗？")) {
+      return;
+    }
+
+    try {
+      await deleteSleepLog(logId);
+      await loadAll();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "删除睡眠记录失败");
     }
   };
 
@@ -130,6 +185,27 @@ export default function TasksPage() {
           {error ? <p className="wealth-note">{error}</p> : null}
         </div>
 
+        <div className="task-form">
+          <h3>睡眠补录（起床后记录）</h3>
+          <div className="task-form-row">
+            <label>
+              入睡时间
+              <input className="quick-input" type="datetime-local" value={sleepStartAt} onChange={(e) => setSleepStartAt(e.target.value)} />
+            </label>
+            <label>
+              起床时间
+              <input className="quick-input" type="datetime-local" value={sleepEndAt} onChange={(e) => setSleepEndAt(e.target.value)} />
+            </label>
+            <label>
+              备注
+              <input className="quick-input" value={sleepNote} onChange={(e) => setSleepNote(e.target.value)} placeholder="可选" />
+            </label>
+          </div>
+          <button className="pill" type="button" disabled={!canSubmitSleep} onClick={() => void handleCreateSleepLog()}>
+            {sleepSubmitting ? "记录中..." : "记录睡眠"}
+          </button>
+        </div>
+
         <div className="feed-list">
           {loading ? <article className="feed-item">任务加载中...</article> : null}
           {!loading && tasks.length === 0 ? <article className="feed-item">暂无任务</article> : null}
@@ -143,6 +219,23 @@ export default function TasksPage() {
                 {toInputDateTime(task.start_at)} - {toInputDateTime(task.end_at)}
               </div>
               <button className="pill danger" type="button" onClick={() => void handleDelete(task.id)}>
+                删除
+              </button>
+            </article>
+          ))}
+        </div>
+
+        <div className="feed-list">
+          <h3>最近睡眠记录</h3>
+          {loading ? <article className="feed-item">睡眠记录加载中...</article> : null}
+          {!loading && sleepLogs.length === 0 ? <article className="feed-item">暂无睡眠记录</article> : null}
+          {sleepLogs.map((log) => (
+            <article className="feed-item" key={log.id}>
+              <div className="feed-meta">
+                {toInputDateTime(log.start_at)} - {toInputDateTime(log.end_at)}
+              </div>
+              <div>{log.note?.trim() ? log.note : "无备注"}</div>
+              <button className="pill danger" type="button" onClick={() => void handleDeleteSleepLog(log.id)}>
                 删除
               </button>
             </article>

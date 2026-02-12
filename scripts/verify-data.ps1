@@ -41,6 +41,7 @@ $required = @(
   "tasks.json",
   "feed.json",
   "knowledge.json",
+  "sleep.json",
   "assets.json",
   "settings.json"
 )
@@ -67,6 +68,14 @@ foreach ($row in $knowledge) {
   Assert-True (Has-Prop $row "id") "knowledge.json entry missing id"
   Assert-True (Has-Prop $row "kind") "knowledge.json entry missing kind"
   Assert-True (Has-Prop $row "markdown") "knowledge.json entry missing markdown"
+}
+
+$sleep = Read-JsonFile (Join-Path $resolvedDataDir "sleep.json")
+Assert-True ($sleep -is [System.Array]) "sleep.json must be an array"
+foreach ($row in $sleep) {
+  Assert-True (Has-Prop $row "id") "sleep.json entry missing id"
+  Assert-True (Has-Prop $row "start_at") "sleep.json entry missing start_at"
+  Assert-True (Has-Prop $row "end_at") "sleep.json entry missing end_at"
 }
 
 $assets = Read-JsonFile (Join-Path $resolvedDataDir "assets.json")

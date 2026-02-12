@@ -7,6 +7,7 @@ from app.api.routes_feed import router as feed_router
 from app.api.routes_health import router as health_router
 from app.api.routes_knowledge import router as knowledge_router
 from app.api.routes_settings import router as settings_router
+from app.api.routes_sleep import router as sleep_router
 from app.api.routes_tasks import router as tasks_router
 from app.core.config import settings
 
@@ -27,6 +28,7 @@ app.include_router(tasks_router)
 app.include_router(feed_router)
 app.include_router(knowledge_router)
 app.include_router(settings_router)
+app.include_router(sleep_router)
 
 
 @app.get("/")

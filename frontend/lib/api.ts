@@ -21,6 +21,13 @@ export type TaskItem = {
   end_at: string | null;
 };
 
+export type SleepLog = {
+  id: number;
+  start_at: string;
+  end_at: string;
+  note: string | null;
+};
+
 export type AssetAccount = {
   name: string;
   is_cash: boolean;
@@ -145,6 +152,27 @@ export async function createTask(payload: {
 
 export async function deleteTask(taskId: number): Promise<{ deleted: boolean; id: number }> {
   return apiRequest<{ deleted: boolean; id: number }>(`/tasks/${taskId}`, {
+    method: "DELETE"
+  });
+}
+
+export async function getSleepLogs(): Promise<SleepLog[]> {
+  return apiRequest<SleepLog[]>("/sleep/logs");
+}
+
+export async function createSleepLog(payload: {
+  start_at: string;
+  end_at: string;
+  note?: string;
+}): Promise<SleepLog> {
+  return apiRequest<SleepLog>("/sleep/logs", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function deleteSleepLog(logId: number): Promise<{ deleted: boolean; id: number }> {
+  return apiRequest<{ deleted: boolean; id: number }>(`/sleep/logs/${logId}`, {
     method: "DELETE"
   });
 }
