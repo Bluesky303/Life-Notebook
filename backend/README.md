@@ -25,11 +25,13 @@ uv run uvicorn app.main:app --reload
 - `GET/POST /knowledge/`: knowledge entries
 - `GET /knowledge/{id}`: knowledge entry detail
 - `DELETE /knowledge/{id}`: delete entry
+- `GET/POST /sleep/logs`: sleep logs list/create
+- `DELETE /sleep/logs/{id}`: delete sleep log
 - `GET/PUT /settings/`: app settings
 
 ## Persistence
 - Data is persisted as JSON files in `backend/data/`.
-- Current files: `tasks.json`, `feed.json`, `knowledge.json`, `assets.json`, `settings.json`.
+- Current files: `tasks.json`, `feed.json`, `knowledge.json`, `sleep.json`, `assets.json`, `settings.json`.
 
 ## Reference
 - Full API reference: `docs/api-reference.md`

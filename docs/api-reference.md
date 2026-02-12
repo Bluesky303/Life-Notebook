@@ -32,6 +32,12 @@ Base URL (local): `http://localhost:8000`
   - Body: `{ "kind": "entry|blog", "title", "markdown" }`
 - `DELETE /knowledge/{entry_id}`
 
+## Sleep
+- `GET /sleep/logs`
+- `POST /sleep/logs`
+  - Body: `{ "start_at", "end_at", "note" }`
+- `DELETE /sleep/logs/{log_id}`
+
 ## Assets
 ### Accounts
 - `GET /assets/accounts`
@@ -65,5 +71,6 @@ Base URL (local): `http://localhost:8000`
   - `backend/data/tasks.json`
   - `backend/data/feed.json`
   - `backend/data/knowledge.json`
+  - `backend/data/sleep.json`
   - `backend/data/assets.json`
   - `backend/data/settings.json`

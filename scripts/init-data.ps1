@@ -9,10 +9,21 @@ $resolvedDataDir = Join-Path $repoRoot $DataDir
 
 New-Item -ItemType Directory -Force -Path $resolvedDataDir | Out-Null
 
+function Convert-ToStableJson {
+  param($Value)
+
+  if ($Value -is [System.Array] -and $Value.Count -eq 0) {
+    return "[]"
+  }
+
+  return $Value | ConvertTo-Json -Depth 10
+}
+
 $defaults = @{
   "tasks.json" = @()
   "feed.json" = @()
   "knowledge.json" = @()
+  "sleep.json" = @()
   "assets.json" = @{
     accounts = @(
       @{
@@ -45,7 +56,7 @@ $defaults = @{
 foreach ($name in $defaults.Keys) {
   $path = Join-Path $resolvedDataDir $name
   if (-not (Test-Path $path)) {
-    $json = $defaults[$name] | ConvertTo-Json -Depth 10
+    $json = Convert-ToStableJson $defaults[$name]
     Set-Content -Encoding utf8 -Path $path -Value $json
     Write-Output "Initialized: $path"
   }
