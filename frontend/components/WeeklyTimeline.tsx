@@ -14,6 +14,11 @@ type TimelineBlock = {
   importance?: Importance;
 };
 
+type DayWindowItem = {
+  key: string;
+  label: string;
+};
+
 const weekDayMap = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 const WINDOW_DAYS = 7;
 const SLOT_MINUTES = 5;
@@ -43,11 +48,6 @@ function normalizeImportance(value: string): Importance {
   }
   return "low";
 }
-
-type DayWindowItem = {
-  key: string;
-  label: string;
-};
 
 function dayKey(date: Date): string {
   const y = date.getFullYear();
@@ -280,35 +280,37 @@ export function WeeklyTimeline() {
           </div>
         </div>
 
-        <div className="timeline-grid">
-          {dayWindow.map((day) => {
-            const blocks = createDayBlocks(dayMergedMap[day.key] ?? []);
+        <div className="timeline-scroll">
+          <div className="timeline-grid" style={{ gridTemplateColumns: `repeat(${dayWindow.length}, minmax(120px, 1fr))` }}>
+            {dayWindow.map((day) => {
+              const blocks = createDayBlocks(dayMergedMap[day.key] ?? []);
 
-            return (
-              <article className="day-col" key={day.key}>
-                <h3 className="day-name">{day.label}</h3>
-                <div className="day-track" style={{ gridTemplateRows: `repeat(${TOTAL_SLOTS}, minmax(0, 1fr))` }}>
-                  {blocks.map((block, idx) => {
-                    const rowStart = toGridRow(block.startMinute);
-                    const rowEnd = toGridRow(block.endMinute);
+              return (
+                <article className="day-col" key={day.key}>
+                  <h3 className="day-name">{day.label}</h3>
+                  <div className="day-track" style={{ gridTemplateRows: `repeat(${TOTAL_SLOTS}, minmax(0, 1fr))` }}>
+                    {blocks.map((block, idx) => {
+                      const rowStart = toGridRow(block.startMinute);
+                      const rowEnd = toGridRow(block.endMinute);
 
-                    return (
-                      <div
-                        className={blockClassName(block)}
-                        key={`${day.key}-${block.startMinute}-${idx}`}
-                        style={{ gridRow: `${rowStart} / ${rowEnd}` }}
-                      >
-                        <div>
-                          {formatMinute(block.startMinute)}-{formatMinute(block.endMinute)}
+                      return (
+                        <div
+                          className={blockClassName(block)}
+                          key={`${day.key}-${block.startMinute}-${idx}`}
+                          style={{ gridRow: `${rowStart} / ${rowEnd}` }}
+                        >
+                          <div>
+                            {formatMinute(block.startMinute)}-{formatMinute(block.endMinute)}
+                          </div>
+                          <div>{block.title}</div>
                         </div>
-                        <div>{block.title}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </article>
-            );
-          })}
+                      );
+                    })}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
         </div>
       </div>
     </section>
