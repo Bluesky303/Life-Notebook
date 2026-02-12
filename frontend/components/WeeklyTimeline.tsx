@@ -14,7 +14,6 @@ type TimelineBlock = {
   importance?: Importance;
 };
 
-const dayOrder = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
 const weekDayMap = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 const WINDOW_DAYS = 7;
 const SLOT_MINUTES = 5;
@@ -226,6 +225,7 @@ export function WeeklyTimeline() {
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [sleepLogs, setSleepLogs] = useState<SleepLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [todayMarker, setTodayMarker] = useState(() => dayKey(new Date()));
 
   useEffect(() => {
     const load = async () => {
@@ -244,7 +244,18 @@ export function WeeklyTimeline() {
     void load();
   }, []);
 
-  const dayWindow = useMemo(() => createDayWindow(), []);
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const current = dayKey(new Date());
+      setTodayMarker((prev) => (prev === current ? prev : current));
+    }, 60 * 1000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  const dayWindow = useMemo(() => createDayWindow(), [todayMarker]);
   const dayTaskMap = useMemo(() => mapTasksToDayEvents(tasks, dayWindow), [tasks, dayWindow]);
   const daySleepMap = useMemo(() => mapSleepToDayEvents(sleepLogs, dayWindow), [sleepLogs, dayWindow]);
   const dayMergedMap = useMemo(() => mergeDayEvents(dayTaskMap, daySleepMap, dayWindow), [dayTaskMap, daySleepMap, dayWindow]);
