@@ -8,24 +8,7 @@ from app.schemas.tasks import TaskCreate, TaskOut
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 _TASKS_FILE = "tasks.json"
-_DEFAULT_TASKS = [
-    {
-        "id": 1,
-        "title": "理财收益记录",
-        "category": "财产",
-        "importance": "high",
-        "start_at": "2026-02-09T09:00:00",
-        "end_at": "2026-02-09T09:20:00",
-    },
-    {
-        "id": 2,
-        "title": "学习计划",
-        "category": "学习",
-        "importance": "medium",
-        "start_at": "2026-02-09T20:00:00",
-        "end_at": "2026-02-09T21:00:00",
-    },
-]
+_DEFAULT_TASKS: list[dict] = []
 
 
 def _load_tasks() -> list[TaskOut]:

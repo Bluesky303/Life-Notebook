@@ -42,6 +42,7 @@ Backend default URL: `http://localhost:8000`
 ```bash
 powershell -ExecutionPolicy Bypass -File scripts/init-data.ps1
 ```
+- Fresh installs start with empty records; wallet/investment accounts are pre-created with `0.00` balance.
 - Backup data (zip to `backup/`):
 ```bash
 powershell -ExecutionPolicy Bypass -File scripts/backup-data.ps1

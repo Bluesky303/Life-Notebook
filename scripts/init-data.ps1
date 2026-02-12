@@ -14,7 +14,23 @@ $defaults = @{
   "feed.json" = @()
   "knowledge.json" = @()
   "assets.json" = @{
-    accounts = @()
+    accounts = @(
+      @{
+        name = "微信钱包"
+        is_cash = $true
+        balance = "0.00"
+      },
+      @{
+        name = "支付宝钱包"
+        is_cash = $true
+        balance = "0.00"
+      },
+      @{
+        name = "支付宝理财"
+        is_cash = $false
+        balance = "0.00"
+      }
+    )
     transactions = @()
     investment_logs = @()
   }
