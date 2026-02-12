@@ -19,6 +19,16 @@ function Convert-ToStableJson {
   return $Value | ConvertTo-Json -Depth 10
 }
 
+function Write-Utf8NoBom {
+  param(
+    [string]$Path,
+    [string]$Value
+  )
+
+  $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+  [System.IO.File]::WriteAllText($Path, $Value, $utf8NoBom)
+}
+
 $defaults = @{
   "tasks.json" = @()
   "feed.json" = @()
@@ -57,14 +67,14 @@ foreach ($name in $defaults.Keys) {
   $path = Join-Path $resolvedDataDir $name
   if (-not (Test-Path $path)) {
     $json = Convert-ToStableJson $defaults[$name]
-    Set-Content -Encoding utf8 -Path $path -Value $json
+    Write-Utf8NoBom -Path $path -Value $json
     Write-Output "Initialized: $path"
   }
 }
 
 $gitkeep = Join-Path $resolvedDataDir ".gitkeep"
 if (-not (Test-Path $gitkeep)) {
-  Set-Content -Encoding utf8 -Path $gitkeep -Value ""
+  Write-Utf8NoBom -Path $gitkeep -Value ""
 }
 
 Write-Output "Data initialization completed."
