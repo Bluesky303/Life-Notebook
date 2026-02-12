@@ -286,7 +286,16 @@ export async function deleteKnowledgeEntry(entryId: number): Promise<{ deleted: 
 }
 
 export async function getAppSettings(): Promise<AppSettings> {
-  return apiRequest<AppSettings>("/settings/");
+  try {
+    return await apiRequest<AppSettings>("/settings/");
+  } catch {
+    return {
+      default_provider: "codex",
+      model_name: "gpt-5-codex",
+      theme: "sci-fi",
+      local_only: true
+    };
+  }
 }
 
 export async function updateAppSettings(payload: AppSettings): Promise<AppSettings> {
@@ -302,3 +311,6 @@ export async function parseRecordWithAI(payload: { text: string }): Promise<AIPa
     body: JSON.stringify(payload)
   });
 }
+
+
+
