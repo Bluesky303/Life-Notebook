@@ -14,8 +14,8 @@ type TimelineBlock = {
   importance?: Importance;
 };
 
-const dayOrder = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
 const weekDayMap = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+const WINDOW_DAYS = 8; // Today + next 7 days (e.g. Tue -> next Tue)
 const SLOT_MINUTES = 5;
 const TOTAL_SLOTS = (24 * 60) / SLOT_MINUTES;
 
@@ -44,8 +44,32 @@ function normalizeImportance(value: string): Importance {
   return "low";
 }
 
-function mapTasksToDayEvents(tasks: TaskItem[]): Record<string, TimelineBlock[]> {
-  const dayEvents: Record<string, TimelineBlock[]> = Object.fromEntries(dayOrder.map((day) => [day, []]));
+function dayKey(date: Date): string {
+  const y = date.getFullYear();
+  const m = (date.getMonth() + 1).toString().padStart(2, "0");
+  const d = date.getDate().toString().padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function createDayWindow(): Array<{ key: string; label: string }> {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return Array.from({ length: WINDOW_DAYS }, (_, index) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() + index);
+    const mm = (d.getMonth() + 1).toString().padStart(2, "0");
+    const dd = d.getDate().toString().padStart(2, "0");
+    return {
+      key: dayKey(d),
+      label: `${weekDayMap[d.getDay()]} ${mm}/${dd}`
+    };
+  });
+}
+
+function mapTasksToDayEvents(tasks: TaskItem[], windowDays: Array<{ key: string; label: string }>): Record<string, TimelineBlock[]> {
+  const dayEvents: Record<string, TimelineBlock[]> = Object.fromEntries(windowDays.map((day) => [day.key, []]));
+  const allowed = new Set(windowDays.map((day) => day.key));
 
   for (const task of tasks) {
     if (!task.start_at || !task.end_at) {
@@ -59,8 +83,8 @@ function mapTasksToDayEvents(tasks: TaskItem[]): Record<string, TimelineBlock[]>
       continue;
     }
 
-    const day = weekDayMap[startDate.getDay()];
-    if (!dayEvents[day]) {
+    const key = dayKey(startDate);
+    if (!allowed.has(key)) {
       continue;
     }
 
@@ -71,7 +95,7 @@ function mapTasksToDayEvents(tasks: TaskItem[]): Record<string, TimelineBlock[]>
       continue;
     }
 
-    dayEvents[day].push({
+    dayEvents[key].push({
       startMinute,
       endMinute,
       title: task.title,
@@ -80,8 +104,8 @@ function mapTasksToDayEvents(tasks: TaskItem[]): Record<string, TimelineBlock[]>
     });
   }
 
-  for (const day of dayOrder) {
-    dayEvents[day] = dayEvents[day].sort((a, b) => a.startMinute - b.startMinute);
+  for (const day of windowDays) {
+    dayEvents[day.key] = dayEvents[day.key].sort((a, b) => a.startMinute - b.startMinute);
   }
 
   return dayEvents;
@@ -157,12 +181,13 @@ export function WeeklyTimeline() {
     void load();
   }, []);
 
-  const dayTaskMap = useMemo(() => mapTasksToDayEvents(tasks), [tasks]);
+  const dayWindow = useMemo(() => createDayWindow(), []);
+  const dayTaskMap = useMemo(() => mapTasksToDayEvents(tasks, dayWindow), [tasks, dayWindow]);
   const hourLabels = useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
 
   return (
     <section className="panel timeline-panel">
-      <p className="panel-title">一周时间表</p>
+      <p className="panel-title">时间表（从今天到下周同日）</p>
       {loading ? <p className="wealth-note">正在读取任务...</p> : null}
       <div className="timeline-board">
         <div className="time-axis">
@@ -179,35 +204,37 @@ export function WeeklyTimeline() {
           </div>
         </div>
 
-        <div className="timeline-grid">
-          {dayOrder.map((day) => {
-            const blocks = createDayBlocks(dayTaskMap[day] ?? []);
+        <div className="timeline-scroll">
+          <div className="timeline-grid" style={{ gridTemplateColumns: `repeat(${dayWindow.length}, minmax(120px, 1fr))` }}>
+            {dayWindow.map((day) => {
+              const blocks = createDayBlocks(dayTaskMap[day.key] ?? []);
 
-            return (
-              <article className="day-col" key={day}>
-                <h3 className="day-name">{day}</h3>
-                <div className="day-track" style={{ gridTemplateRows: `repeat(${TOTAL_SLOTS}, minmax(0, 1fr))` }}>
-                  {blocks.map((block, idx) => {
-                    const rowStart = toGridRow(block.startMinute);
-                    const rowEnd = toGridRow(block.endMinute);
+              return (
+                <article className="day-col" key={day.key}>
+                  <h3 className="day-name">{day.label}</h3>
+                  <div className="day-track" style={{ gridTemplateRows: `repeat(${TOTAL_SLOTS}, minmax(0, 1fr))` }}>
+                    {blocks.map((block, idx) => {
+                      const rowStart = toGridRow(block.startMinute);
+                      const rowEnd = toGridRow(block.endMinute);
 
-                    return (
-                      <div
-                        className={blockClassName(block)}
-                        key={`${day}-${block.startMinute}-${idx}`}
-                        style={{ gridRow: `${rowStart} / ${rowEnd}` }}
-                      >
-                        <div>
-                          {formatMinute(block.startMinute)}-{formatMinute(block.endMinute)}
+                      return (
+                        <div
+                          className={blockClassName(block)}
+                          key={`${day.key}-${block.startMinute}-${idx}`}
+                          style={{ gridRow: `${rowStart} / ${rowEnd}` }}
+                        >
+                          <div>
+                            {formatMinute(block.startMinute)}-{formatMinute(block.endMinute)}
+                          </div>
+                          <div>{block.title}</div>
                         </div>
-                        <div>{block.title}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </article>
-            );
-          })}
+                      );
+                    })}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
         </div>
       </div>
     </section>
