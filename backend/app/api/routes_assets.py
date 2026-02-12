@@ -12,46 +12,12 @@ router = APIRouter(prefix="/assets", tags=["assets"])
 _ASSETS_FILE = "assets.json"
 _DEFAULT_STATE = {
     "accounts": [
-        {"name": "微信钱包", "is_cash": True, "balance": "5680.50"},
-        {"name": "支付宝钱包", "is_cash": True, "balance": "8120.00"},
-        {"name": "支付宝理财", "is_cash": False, "balance": "13200.00"},
+        {"name": "微信钱包", "is_cash": True, "balance": "0.00"},
+        {"name": "支付宝钱包", "is_cash": True, "balance": "0.00"},
+        {"name": "支付宝理财", "is_cash": False, "balance": "0.00"},
     ],
-    "transactions": [
-        {
-            "id": 1,
-            "account": "微信钱包",
-            "type": "expense",
-            "category": "吃饭",
-            "amount": "32.00",
-            "happened_on": "2026-02-07",
-            "note": "午饭",
-        },
-        {
-            "id": 2,
-            "account": "支付宝钱包",
-            "type": "income",
-            "category": "工资",
-            "amount": "4200.00",
-            "happened_on": "2026-02-05",
-            "note": "兼职收入",
-        },
-    ],
-    "investment_logs": [
-        {
-            "id": 1,
-            "happened_on": "2026-02-03",
-            "invested": "13000.00",
-            "daily_profit": "7.20",
-            "note": "手动记录",
-        },
-        {
-            "id": 2,
-            "happened_on": "2026-02-04",
-            "invested": "13100.00",
-            "daily_profit": "6.80",
-            "note": "手动记录",
-        },
-    ],
+    "transactions": [],
+    "investment_logs": [],
 }
 
 
