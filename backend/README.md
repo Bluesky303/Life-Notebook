@@ -36,3 +36,10 @@ uv run uvicorn app.main:app --reload
 
 ## Reference
 - Full API reference: `docs/api-reference.md`
+
+## MCP Server
+- Run local MCP server for Codex tools:
+```bash
+uv run python -m mcp_server.server
+```
+- Setup guide: `docs/mcp-codex.md`

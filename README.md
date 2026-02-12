@@ -17,6 +17,7 @@ Monorepo for a personal AI-managed life notebook.
 - Development model: GitHub Issue -> `feature/*` -> PR to `dev` -> review -> merge
 - API reference: `docs/api-reference.md`
 - Local deploy guide: `docs/deploy-local.md`
+- MCP for Codex: `docs/mcp-codex.md`
 
 ## Quick Start
 

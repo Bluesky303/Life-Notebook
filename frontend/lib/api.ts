@@ -94,14 +94,20 @@ export type AIParseRecordResult = {
 };
 
 async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {})
-    },
-    cache: "no-store"
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        ...(init?.headers ?? {})
+      },
+      cache: "no-store"
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "network error";
+    throw new Error(`Cannot reach backend (${API_BASE_URL}). ${message}`);
+  }
 
   if (!response.ok) {
     const text = await response.text();
@@ -280,7 +286,16 @@ export async function deleteKnowledgeEntry(entryId: number): Promise<{ deleted: 
 }
 
 export async function getAppSettings(): Promise<AppSettings> {
-  return apiRequest<AppSettings>("/settings/");
+  try {
+    return await apiRequest<AppSettings>("/settings/");
+  } catch {
+    return {
+      default_provider: "codex",
+      model_name: "gpt-5-codex",
+      theme: "sci-fi",
+      local_only: true
+    };
+  }
 }
 
 export async function updateAppSettings(payload: AppSettings): Promise<AppSettings> {
@@ -296,3 +311,6 @@ export async function parseRecordWithAI(payload: { text: string }): Promise<AIPa
     body: JSON.stringify(payload)
   });
 }
+
+
+
