@@ -7,30 +7,24 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, ValidationError
 
-from app.core.json_store import DATA_DIR, read_json, write_json
+from app.core.json_store import DATA_DIR
 from app.schemas.assets import TransactionCreate, TransactionOut
 from app.schemas.tasks import TaskCreate, TaskOut
+from app.services.assets_storage import cash_total as db_asset_cash_total
+from app.services.assets_storage import create_transaction as db_asset_create_transaction
+from app.services.assets_storage import list_accounts as db_asset_list_accounts
+from app.services.feed_storage import create_feed as db_create_feed
+from app.services.feed_storage import list_feeds as db_list_feeds
+from app.services.knowledge_storage import create_entry as db_create_entry
+from app.services.knowledge_storage import delete_entry as db_delete_entry
+from app.services.knowledge_storage import list_entries as db_list_entries
+from app.services.settings_storage import get_settings as db_get_settings
+from app.services.settings_storage import update_settings as db_update_settings
 from app.services.task_storage import load_tasks as db_load_tasks, replace_tasks as db_replace_tasks
 
 mcp = FastMCP("life-notebook")
 
-TASKS_FILE = "tasks.json"
-FEED_FILE = "feed.json"
-KNOWLEDGE_FILE = "knowledge.json"
-ASSETS_FILE = "assets.json"
-SETTINGS_FILE = "settings.json"
-
 AUDIT_FILE = DATA_DIR / "mcp_audit.log"
-
-DEFAULT_ASSETS = {
-    "accounts": [
-        {"name": "WeChat Wallet", "is_cash": True, "balance": "0.00"},
-        {"name": "Alipay Wallet", "is_cash": True, "balance": "0.00"},
-        {"name": "Alipay Investment", "is_cash": False, "balance": "0.00"},
-    ],
-    "transactions": [],
-    "investment_logs": [],
-}
 
 
 class SettingsPayload(BaseModel):
@@ -40,14 +34,6 @@ class SettingsPayload(BaseModel):
     local_only: bool
 
 
-
-
-DEFAULT_SETTINGS = SettingsPayload(
-    default_provider="codex",
-    model_name="gpt-5-codex",
-    theme="sci-fi",
-    local_only=True,
-).model_dump(mode="json")
 
 
 def _now_iso() -> str:
@@ -93,34 +79,6 @@ def _load_tasks() -> list[TaskOut]:
 def _save_tasks(tasks: list[TaskOut]) -> None:
     db_replace_tasks(tasks)
 
-
-
-def _load_feed() -> list[dict[str, Any]]:
-    return read_json(FEED_FILE, [])
-
-
-def _save_feed(rows: list[dict[str, Any]]) -> None:
-    write_json(FEED_FILE, rows)
-
-
-def _load_knowledge() -> list[dict[str, Any]]:
-    return read_json(KNOWLEDGE_FILE, [])
-
-
-def _save_knowledge(rows: list[dict[str, Any]]) -> None:
-    write_json(KNOWLEDGE_FILE, rows)
-
-
-def _load_assets() -> dict[str, Any]:
-    return read_json(ASSETS_FILE, DEFAULT_ASSETS)
-
-
-def _save_assets(state: dict[str, Any]) -> None:
-    write_json(ASSETS_FILE, state)
-
-
-def _load_settings() -> dict[str, Any]:
-    return read_json(SETTINGS_FILE, DEFAULT_SETTINGS)
 
 
 @mcp.tool()
@@ -338,32 +296,45 @@ def task_mark_done(task_id: int, done_at: str | None = None) -> dict[str, Any]:
 @mcp.tool()
 def feed_list(limit: int = 20) -> list[dict[str, Any]]:
     """List feed items, newest first."""
-    rows = list(reversed(_load_feed()))
-    return rows[: max(1, min(limit, 200))]
+    rows = db_list_feeds(limit=max(1, min(limit, 200)))
+    return [
+        {
+            "id": int(row["id"]),
+            "category": str(row["category"]),
+            "content": str(row["content"]),
+            "created_at": row["created_at"].isoformat() if hasattr(row["created_at"], "isoformat") else str(row["created_at"]),
+        }
+        for row in rows
+    ]
 
 
 @mcp.tool()
 def feed_add(category: str, content: str) -> dict[str, Any]:
     """Create one feed item."""
-    rows = _load_feed()
-    item = {"id": _next_id(rows), "category": category, "content": content, "created_at": _now_iso()}
-    rows.append(item)
-    _save_feed(rows)
+    item = db_create_feed(category, content)
     _append_audit("feed_add", {"id": item["id"], "category": category})
-    return item
+    return {
+        "id": int(item["id"]),
+        "category": str(item["category"]),
+        "content": str(item["content"]),
+        "created_at": item["created_at"].isoformat() if hasattr(item["created_at"], "isoformat") else str(item["created_at"]),
+    }
 
 
 @mcp.tool()
 def knowledge_list(kind: str | None = None, query: str | None = None, limit: int = 30) -> list[dict[str, Any]]:
     """List knowledge entries by kind/query."""
-    rows = _load_knowledge()
-    if kind:
-        rows = [row for row in rows if row.get("kind") == kind]
-    if query:
-        q = query.lower()
-        rows = [row for row in rows if q in str(row.get("title", "")).lower() or q in str(row.get("markdown", "")).lower()]
-    rows = sorted(rows, key=lambda row: str(row.get("updated_at", "")), reverse=True)
-    return rows[: max(1, min(limit, 200))]
+    rows = db_list_entries(kind=kind, q=query)[: max(1, min(limit, 200))]
+    return [
+        {
+            "id": int(row["id"]),
+            "kind": str(row["kind"]),
+            "title": str(row["title"]),
+            "markdown": str(row["markdown"]),
+            "updated_at": row["updated_at"].isoformat() if hasattr(row["updated_at"], "isoformat") else str(row["updated_at"]),
+        }
+        for row in rows
+    ]
 
 
 @mcp.tool()
@@ -371,18 +342,15 @@ def knowledge_add(kind: str, title: str, markdown: str) -> dict[str, Any]:
     """Create one knowledge entry."""
     if kind not in {"entry", "blog"}:
         raise ValueError("kind must be entry or blog")
-    rows = _load_knowledge()
-    item = {
-        "id": _next_id(rows),
-        "kind": kind,
-        "title": title,
-        "markdown": markdown,
-        "updated_at": _now_iso(),
-    }
-    rows.append(item)
-    _save_knowledge(rows)
+    item = db_create_entry(kind=kind, title=title, markdown=markdown)
     _append_audit("knowledge_add", {"id": item["id"], "kind": kind})
-    return item
+    return {
+        "id": int(item["id"]),
+        "kind": str(item["kind"]),
+        "title": str(item["title"]),
+        "markdown": str(item["markdown"]),
+        "updated_at": item["updated_at"].isoformat() if hasattr(item["updated_at"], "isoformat") else str(item["updated_at"]),
+    }
 
 
 @mcp.tool()
@@ -390,11 +358,9 @@ def knowledge_delete(entry_id: int, confirm: bool = False) -> dict[str, Any]:
     """Delete one knowledge entry (confirm=true required)."""
     if not confirm:
         raise ValueError("confirm must be true to delete knowledge entry")
-    rows = _load_knowledge()
-    new_rows = [row for row in rows if int(row.get("id", 0)) != entry_id]
-    if len(new_rows) == len(rows):
+    ok = db_delete_entry(entry_id)
+    if not ok:
         raise ValueError("entry not found")
-    _save_knowledge(new_rows)
     _append_audit("knowledge_delete", {"id": entry_id})
     return {"deleted": True, "id": entry_id}
 
@@ -402,19 +368,13 @@ def knowledge_delete(entry_id: int, confirm: bool = False) -> dict[str, Any]:
 @mcp.tool()
 def asset_list_accounts() -> list[dict[str, Any]]:
     """List asset accounts."""
-    state = _load_assets()
-    return state.get("accounts", [])
+    return db_asset_list_accounts()
 
 
 @mcp.tool()
 def asset_cash_total() -> dict[str, str]:
     """Get total cash across cash accounts."""
-    state = _load_assets()
-    total = Decimal("0")
-    for account in state.get("accounts", []):
-        if account.get("is_cash"):
-            total += Decimal(str(account.get("balance", "0")))
-    return {"currency": "CNY", "cash_total": f"{total:.2f}"}
+    return db_asset_cash_total()
 
 
 @mcp.tool()
@@ -443,32 +403,18 @@ def asset_record_transaction(
     except (ValidationError, ValueError) as exc:
         raise ValueError(str(exc)) from exc
 
-    state = _load_assets()
-    accounts = state.get("accounts", [])
-    account_map = {row.get("name"): row for row in accounts}
-    account_row = account_map.get(account)
-    if not account_row:
-        raise ValueError("account not found")
-
-    rows = [TransactionOut.model_validate(row) for row in state.get("transactions", [])]
-    next_id = max([row.id for row in rows], default=0) + 1
-    row = TransactionOut(id=next_id, **payload.model_dump())
-    rows.append(row)
-
-    balance = Decimal(str(account_row.get("balance", "0")))
-    balance = balance + dec_amount if tx_type == "income" else balance - dec_amount
-    account_row["balance"] = f"{balance:.2f}"
-
-    state["transactions"] = [item.model_dump(mode="json") for item in rows]
-    _save_assets(state)
-    _append_audit("asset_record_transaction", {"id": next_id, "account": account, "tx_type": tx_type})
-    return row.model_dump(mode="json")
+    try:
+        row = db_asset_create_transaction(payload.model_dump())
+    except ValueError as exc:
+        raise ValueError(str(exc)) from exc
+    _append_audit("asset_record_transaction", {"id": row["id"], "account": account, "tx_type": tx_type})
+    return TransactionOut.model_validate(row).model_dump(mode="json")
 
 
 @mcp.tool()
 def settings_get() -> dict[str, Any]:
     """Get current app settings."""
-    row = _load_settings()
+    row = db_get_settings()
     return SettingsPayload.model_validate(row).model_dump(mode="json")
 
 
@@ -480,7 +426,7 @@ def settings_update(
     local_only: bool | None = None,
 ) -> dict[str, Any]:
     """Partially update app settings."""
-    row = _load_settings()
+    row = db_get_settings()
     updated_keys: list[str] = []
     if default_provider is not None:
         row["default_provider"] = default_provider
@@ -495,7 +441,7 @@ def settings_update(
         row["local_only"] = local_only
         updated_keys.append("local_only")
     out = SettingsPayload.model_validate(row).model_dump(mode="json")
-    write_json(SETTINGS_FILE, out)
+    out = db_update_settings(out)
     _append_audit("settings_update", {"keys": updated_keys})
     return out
 

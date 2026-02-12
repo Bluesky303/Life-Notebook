@@ -1,11 +1,10 @@
-﻿from fastapi import APIRouter
+from fastapi import APIRouter
 from pydantic import BaseModel
 
-from app.core.json_store import read_json, write_json
+from app.services.settings_storage import get_settings as db_get_settings
+from app.services.settings_storage import update_settings as db_update_settings
 
 router = APIRouter(prefix="/settings", tags=["settings"])
-
-_SETTINGS_FILE = "settings.json"
 
 
 class SettingsPayload(BaseModel):
@@ -25,11 +24,11 @@ _DEFAULT_SETTINGS = SettingsPayload(
 
 @router.get("/", response_model=SettingsPayload)
 def get_settings() -> SettingsPayload:
-    row = read_json(_SETTINGS_FILE, _DEFAULT_SETTINGS.model_dump(mode="json"))
+    row = db_get_settings()
     return SettingsPayload.model_validate(row)
 
 
 @router.put("/", response_model=SettingsPayload)
 def update_settings(payload: SettingsPayload) -> SettingsPayload:
-    write_json(_SETTINGS_FILE, payload.model_dump(mode="json"))
-    return payload
+    row = db_update_settings(payload.model_dump(mode="json"))
+    return SettingsPayload.model_validate(row)

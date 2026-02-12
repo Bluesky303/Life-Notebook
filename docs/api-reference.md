@@ -68,9 +68,8 @@ Base URL (local): `http://localhost:8000`
   - Body: `{ "default_provider", "model_name", "theme", "local_only" }`
 
 ## Persistence
-- Tasks are persisted in SQLite: `backend/data/life_notebook.db`.
-- Other modules currently use JSON files in `backend/data/`.
-- Current JSON files:
+- Application data is persisted in SQLite: `backend/data/life_notebook.db`.
+- Legacy JSON files in `backend/data/` are only used as first-run bootstrap seed:
   - `backend/data/feed.json`
   - `backend/data/knowledge.json`
   - `backend/data/sleep.json`

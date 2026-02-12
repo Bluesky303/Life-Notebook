@@ -8,7 +8,7 @@ powershell -ExecutionPolicy Bypass -File scripts/init-data.ps1
 ```
 - Creates missing files in `backend/data/` with safe defaults.
 - Fresh installs start with empty records; wallet/investment accounts are pre-created with `0.00` balance.
-- Tasks now persist to SQLite database: `backend/data/life_notebook.db`.
+- Application data persists to SQLite database: `backend/data/life_notebook.db`.
 
 ## 2) Backup Data
 ```bash
