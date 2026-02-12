@@ -291,6 +291,28 @@ a {
   overflow-x: auto;
   overflow-y: hidden;
   min-width: 0;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(93, 236, 232, 0.55) rgba(7, 13, 24, 0.45);
+}
+
+.timeline-scroll::-webkit-scrollbar {
+  height: 10px;
+}
+
+.timeline-scroll::-webkit-scrollbar-track {
+  background: rgba(7, 13, 24, 0.45);
+  border-radius: 999px;
+}
+
+.timeline-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(90deg, rgba(93, 236, 232, 0.7), rgba(103, 242, 161, 0.55));
+  border-radius: 999px;
+  border: 1px solid rgba(93, 236, 232, 0.2);
+}
+
+.timeline-scroll::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(90deg, rgba(93, 236, 232, 0.85), rgba(103, 242, 161, 0.7));
 }
 
 .timeline-scroll .timeline-grid {

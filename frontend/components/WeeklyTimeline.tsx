@@ -165,6 +165,7 @@ function blockClassName(block: TimelineBlock): string {
 export function WeeklyTimeline() {
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [todayMarker, setTodayMarker] = useState(() => dayKey(new Date()));
 
   useEffect(() => {
     const load = async () => {
@@ -181,7 +182,18 @@ export function WeeklyTimeline() {
     void load();
   }, []);
 
-  const dayWindow = useMemo(() => createDayWindow(), []);
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const current = dayKey(new Date());
+      setTodayMarker((prev) => (prev === current ? prev : current));
+    }, 60 * 1000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  const dayWindow = useMemo(() => createDayWindow(), [todayMarker]);
   const dayTaskMap = useMemo(() => mapTasksToDayEvents(tasks, dayWindow), [tasks, dayWindow]);
   const hourLabels = useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
 
