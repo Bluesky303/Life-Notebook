@@ -141,24 +141,42 @@ def task_create(
     title: str,
     category: str = "general",
     importance: str = "medium",
+    task_type: str = "task",
+    status: str = "todo",
     start_at: str | None = None,
     end_at: str | None = None,
+    planned_start_at: str | None = None,
+    planned_end_at: str | None = None,
+    actual_start_at: str | None = None,
+    actual_end_at: str | None = None,
+    completed_at: str | None = None,
+    note: str | None = None,
 ) -> dict[str, Any]:
     """Create one task."""
-    start_dt = _parse_datetime(start_at) if start_at else None
-    end_dt = _parse_datetime(end_at) if end_at else None
-    if start_dt and end_dt and end_dt <= start_dt:
+    planned_start_dt = _parse_datetime(planned_start_at) if planned_start_at else (_parse_datetime(start_at) if start_at else None)
+    planned_end_dt = _parse_datetime(planned_end_at) if planned_end_at else (_parse_datetime(end_at) if end_at else None)
+    actual_start_dt = _parse_datetime(actual_start_at) if actual_start_at else None
+    actual_end_dt = _parse_datetime(actual_end_at) if actual_end_at else None
+    completed_dt = _parse_datetime(completed_at) if completed_at else None
+
+    if planned_start_dt and planned_end_dt and planned_end_dt <= planned_start_dt:
         raise ValueError("end_at must be later than start_at")
+    if actual_start_dt and actual_end_dt and actual_end_dt <= actual_start_dt:
+        raise ValueError("actual_end_at must be later than actual_start_at")
 
     try:
         payload = TaskCreate(
             title=title,
             category=category,
             importance=importance,
-            type="task",
-            status="todo",
-            planned_start_at=start_dt,
-            planned_end_at=end_dt,
+            type=task_type,
+            status=status,
+            planned_start_at=planned_start_dt,
+            planned_end_at=planned_end_dt,
+            actual_start_at=actual_start_dt,
+            actual_end_at=actual_end_dt,
+            completed_at=completed_dt,
+            note=note,
         )
     except ValidationError as exc:
         raise ValueError(str(exc)) from exc
@@ -195,8 +213,16 @@ def task_update(
     title: str | None = None,
     category: str | None = None,
     importance: str | None = None,
+    task_type: str | None = None,
+    status: str | None = None,
     start_at: str | None = None,
     end_at: str | None = None,
+    planned_start_at: str | None = None,
+    planned_end_at: str | None = None,
+    actual_start_at: str | None = None,
+    actual_end_at: str | None = None,
+    completed_at: str | None = None,
+    note: str | None = None,
 ) -> dict[str, Any]:
     """Update one task. Any None field keeps original value."""
     tasks = _load_tasks()
@@ -211,10 +237,26 @@ def task_update(
         merged["category"] = category
     if importance is not None:
         merged["importance"] = importance
-    if start_at is not None:
+    if task_type is not None:
+        merged["type"] = task_type
+    if status is not None:
+        merged["status"] = status
+    if note is not None:
+        merged["note"] = note
+    if planned_start_at is not None:
+        merged["planned_start_at"] = _parse_datetime(planned_start_at)
+    elif start_at is not None:
         merged["planned_start_at"] = _parse_datetime(start_at)
-    if end_at is not None:
+    if planned_end_at is not None:
+        merged["planned_end_at"] = _parse_datetime(planned_end_at)
+    elif end_at is not None:
         merged["planned_end_at"] = _parse_datetime(end_at)
+    if actual_start_at is not None:
+        merged["actual_start_at"] = _parse_datetime(actual_start_at)
+    if actual_end_at is not None:
+        merged["actual_end_at"] = _parse_datetime(actual_end_at)
+    if completed_at is not None:
+        merged["completed_at"] = _parse_datetime(completed_at)
 
     if (
         merged.get("planned_start_at")
@@ -222,6 +264,12 @@ def task_update(
         and merged["planned_end_at"] <= merged["planned_start_at"]
     ):
         raise ValueError("end_at must be later than start_at")
+    if (
+        merged.get("actual_start_at")
+        and merged.get("actual_end_at")
+        and merged["actual_end_at"] <= merged["actual_start_at"]
+    ):
+        raise ValueError("actual_end_at must be later than actual_start_at")
 
     updated = TaskOut.model_validate(merged)
     rows = [updated if row.id == task_id else row for row in tasks]
